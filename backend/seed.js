@@ -44,6 +44,11 @@ async function seedDatabase() {
         await recruiterUser.save();
         console.log("✅ Created Demo Recruiter (recruiter@demo.com / password123)");
 
+        // Create Recruiter profile linked to user
+        const RecruiterModel = require('./models/Recruiter');
+        const recruiterProfile = new RecruiterModel({ user: recruiterUser._id, name: recruiterUser.fullName, email: recruiterUser.email, companyName: 'Demo Company' });
+        await recruiterProfile.save();
+
         // 2. Create Candidates
         const candidates = [
             {
@@ -86,22 +91,14 @@ async function seedDatabase() {
 
             // Save Candidate Profile
             const cand = new Candidate({
-                _id: new mongoose.Types.ObjectId(),
+                user: user._id,
                 name: c.fullName,
                 email: c.email,
                 skills: c.skills,
                 summary: c.summary,
                 embedding: embedding
             });
-            // Important: Link User ID to Candidate _id somehow, or depend on auth design.
-            // In the current user schema, candidateId usually maps to User id or Candidate _id.
-            // Wait, your Candidate.findById uses req.user.id (from the UUID). So:
-            cand._id = mongoose.Types.ObjectId.isValid(uId) ? uId : new mongoose.Types.ObjectId();
-            // If req.user.id is uuid, Candidate expects ObjectId or string.
-            // Let's just save normally. But if uploadResume uses req.user.id = candidateId, let's use the uuid string as _id!
-            // In Mongoose, if _id is standard ObjectId but User.id is string UUID, it might be separate. 
-            // I will set User.id AND Candidate.email to map them.
-
+            // Link Candidate profile to its User via user._id
             await cand.save();
             savedCandidates.push({ user, cand });
             console.log(`✅ Created Candidate: ${c.fullName} (${c.email} / password123)`);
@@ -148,7 +145,8 @@ async function seedDatabase() {
 
             const job = new Job({
                 id: uuidv4(),
-                recruiterId: recruiterId, // Linked to the recruiter
+                recruiterId: recruiterId, // Linked to the recruiter (legacy string)
+                recruiter: recruiterUser._id,
                 ...j,
                 embedding: embedding
             });
@@ -163,9 +161,9 @@ async function seedDatabase() {
         // Frontend candidate applies to React job
         const app1 = new Application({
             id: uuidv4(),
-            jobId: savedJobs[0].id,
-            candidateId: savedCandidates[0].user.id,
-            recruiterId: recruiterId,
+            jobId: savedJobs[0]._id,
+            candidateId: savedCandidates[0].user._id,
+            recruiterId: recruiterUser._id,
             status: "Pending"
         });
         await app1.save();
@@ -173,9 +171,9 @@ async function seedDatabase() {
         // Backend candidate applies to Service Engineer job
         const app2 = new Application({
             id: uuidv4(),
-            jobId: savedJobs[2].id,
-            candidateId: savedCandidates[1].user.id,
-            recruiterId: recruiterId,
+            jobId: savedJobs[2]._id,
+            candidateId: savedCandidates[1].user._id,
+            recruiterId: recruiterUser._id,
             status: "In Review"
         });
         await app2.save();
@@ -183,9 +181,9 @@ async function seedDatabase() {
         // ML candidate applies to ML Research job
         const app3 = new Application({
             id: uuidv4(),
-            jobId: savedJobs[1].id,
-            candidateId: savedCandidates[2].user.id,
-            recruiterId: recruiterId,
+            jobId: savedJobs[1]._id,
+            candidateId: savedCandidates[2].user._id,
+            recruiterId: recruiterUser._id,
             status: "Interview Scheduled"
         });
         await app3.save();

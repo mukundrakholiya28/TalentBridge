@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Briefcase, Users, FileText, TrendingUp, Plus, CheckCircle, XCircle, ArrowRight } from "lucide-react";
+import { Briefcase, Users, FileText, TrendingUp, Plus, CheckCircle, XCircle, ArrowRight, User, Edit2, Save } from "lucide-react";
 import { RecruiterHeader } from "../components/RecruiterHeader";
 import { apiClient } from "../../utils/apiClient";
 import { toast } from "sonner";
@@ -9,11 +9,24 @@ export function RecruiterDashboard() {
   const navigate = useNavigate();
   const [jobs, setJobs] = useState<any[]>([]);
   const [recentApplications, setRecentApplications] = useState<any[]>([]);
+  const [profile, setProfile] = useState<any | null>(null);
+  const [editing, setEditing] = useState(false);
+  const [savingProfile, setSavingProfile] = useState(false);
 
   useEffect(() => {
     fetchJobs();
     fetchRecentApplications();
+    fetchProfile();
   }, []);
+
+  const fetchProfile = async () => {
+    try {
+      const res = await apiClient.get('/recruiter/profile');
+      if (res && res.profile) setProfile(res.profile);
+    } catch (err) {
+      console.error('Failed to load recruiter profile', err);
+    }
+  };
 
   const fetchJobs = async () => {
     try {
@@ -64,6 +77,58 @@ export function RecruiterDashboard() {
       <RecruiterHeader />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Recruiter Profile Card */}
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 border border-gray-200 dark:border-gray-700 mb-8">
+          <div className="flex items-start justify-between">
+            <div className="flex items-start gap-4">
+              <div className="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center text-white">
+                <User className="w-8 h-8" />
+              </div>
+              <div>
+                <h3 className="text-xl font-semibold text-gray-900 dark:text-white">{profile?.name || '—'}</h3>
+                <p className="text-sm text-gray-600 dark:text-gray-400">{profile?.companyName || ''}</p>
+                <p className="text-sm text-gray-500 dark:text-gray-500">{profile?.email || ''}</p>
+              </div>
+            </div>
+            <div>
+              {!editing ? (
+                <button onClick={() => setEditing(true)} className="px-3 py-2 bg-blue-50 dark:bg-blue-900/20 text-blue-700 rounded-lg">
+                  <Edit2 className="w-4 h-4 inline-block mr-2" /> Edit Profile
+                </button>
+              ) : (
+                <div className="flex gap-2">
+                  <button onClick={async () => {
+                    setSavingProfile(true);
+                    try {
+                      const res = await apiClient.put('/recruiter/profile', profile);
+                      if (res && res.profile) setProfile(res.profile);
+                      toast.success('Profile saved');
+                      setEditing(false);
+                    } catch (err) {
+                      console.error('Save profile failed', err);
+                      toast.error('Failed to save profile');
+                    } finally {
+                      setSavingProfile(false);
+                    }
+                  }} disabled={savingProfile} className="px-3 py-2 bg-blue-600 text-white rounded-lg">
+                    <Save className="w-4 h-4 inline-block mr-2" /> {savingProfile ? 'Saving...' : 'Save'}
+                  </button>
+                  <button onClick={() => { setEditing(false); fetchProfile(); }} className="px-3 py-2 border rounded-lg">Cancel</button>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {editing && (
+            <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+              <input className="p-2 border rounded" value={profile?.name || ''} onChange={e => setProfile({ ...profile, name: e.target.value })} />
+              <input className="p-2 border rounded" value={profile?.companyName || ''} onChange={e => setProfile({ ...profile, companyName: e.target.value })} />
+              <input className="p-2 border rounded" value={profile?.phone || ''} onChange={e => setProfile({ ...profile, phone: e.target.value })} />
+              <input className="p-2 border rounded md:col-span-2" value={profile?.companyDescription || ''} onChange={e => setProfile({ ...profile, companyDescription: e.target.value })} />
+              <input className="p-2 border rounded" value={profile?.website || ''} onChange={e => setProfile({ ...profile, website: e.target.value })} />
+            </div>
+          )}
+        </div>
         {/* Welcome Section */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">

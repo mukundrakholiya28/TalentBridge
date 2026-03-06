@@ -2,6 +2,7 @@
  * Centralized API client for the Frontend to communicate with the Node.js / Express Backend.
  */
 
+import { getAuthToken } from './authStorage';
 const API_BASE_URL = 'http://localhost:5000/api';
 
 export const apiClient = {
@@ -11,8 +12,7 @@ export const apiClient = {
         };
 
         if (requiresAuth) {
-            // Frontend stores JWT as either `accessToken` or `token` in different places.
-            const token = localStorage.getItem('accessToken') || localStorage.getItem('token');
+            const token = getAuthToken();
             if (token) {
                 headers['Authorization'] = `Bearer ${token}`;
             }
@@ -31,7 +31,7 @@ export const apiClient = {
         };
 
         if (requiresAuth) {
-            const token = localStorage.getItem('accessToken') || localStorage.getItem('token');
+            const token = getAuthToken();
             if (token) {
                 headers['Authorization'] = `Bearer ${token}`;
             }
@@ -51,7 +51,7 @@ export const apiClient = {
         };
 
         if (requiresAuth) {
-            const token = localStorage.getItem('accessToken') || localStorage.getItem('token');
+            const token = getAuthToken();
             if (token) {
                 headers['Authorization'] = `Bearer ${token}`;
             }
@@ -71,7 +71,7 @@ export const apiClient = {
         };
 
         if (requiresAuth) {
-            const token = localStorage.getItem('accessToken') || localStorage.getItem('token');
+            const token = getAuthToken();
             if (token) {
                 headers['Authorization'] = `Bearer ${token}`;
             }

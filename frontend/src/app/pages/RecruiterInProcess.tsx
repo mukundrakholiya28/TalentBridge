@@ -20,24 +20,12 @@ interface InProcessApplication {
     title: string;
     company: string;
   };
-  interviews?: Interview[];
-  assessments?: Assessment[];
-}
-
-interface Interview {
-  id: string;
-  date: string;
-  time: string;
-  type: 'phone' | 'video' | 'in-person';
-  status: 'scheduled' | 'completed' | 'cancelled';
-}
-
-interface Assessment {
-  id: string;
-  title: string;
-  dueDate: string;
-  status: 'pending' | 'submitted' | 'evaluated';
-  score?: number;
+  interviewLink?: string;
+  interviewDate?: string | null;
+  interviewType?: "phone" | "video" | "in-person";
+  assessmentLink?: string;
+  assessmentDueDate?: string | null;
+  assessmentTitle?: string;
 }
 
 export function RecruiterInProcess() {
@@ -45,11 +33,17 @@ export function RecruiterInProcess() {
   const [applications, setApplications] = useState<InProcessApplication[]>([]);
   const [loading, setLoading] = useState(true);
   const [showScheduleModal, setShowScheduleModal] = useState(false);
+  const [showAssessmentModal, setShowAssessmentModal] = useState(false);
   const [selectedApplication, setSelectedApplication] = useState<string | null>(null);
   const [interviewForm, setInterviewForm] = useState({
-    date: '',
-    time: '',
-    type: 'video' as 'phone' | 'video' | 'in-person',
+    date: "",
+    time: "",
+    type: "video" as "phone" | "video" | "in-person",
+  });
+  const [assessmentForm, setAssessmentForm] = useState({
+    title: "",
+    dueDate: "",
+    link: "",
   });
 
   useEffect(() => {
@@ -58,13 +52,11 @@ export function RecruiterInProcess() {
 
   const fetchInProcessApplications = async () => {
     try {
-      // Fetch all jobs for this recruiter first to use as a lookup
-      const jobsData = await apiClient.get('/jobs/recruiter');
+      const jobsData = await apiClient.get("/jobs/recruiter");
 
       if (Array.isArray(jobsData)) {
         const allInProcess: InProcessApplication[] = [];
 
-        // For each job, fetch applications
         for (const rJob of jobsData) {
           try {
             const appsData = await apiClient.get(`/applications/job/${rJob.id || rJob._id}`);
@@ -72,12 +64,12 @@ export function RecruiterInProcess() {
             if (Array.isArray(appsData)) {
               const inProcessApps = appsData
                 .filter((app: any) => {
-                  const s = (app.status || '').toLowerCase();
-                  return s === 'in-process' || s === 'in_process' || s === 'in process';
+                  const s = (app.status || "").toLowerCase();
+                  return s === "in-process" || s === "in_process" || s === "in process";
                 })
                 .map((app: any) => ({
                   ...app,
-                  candidate: app.candidate || { fullName: 'Candidate', email: '', phone: '' },
+                  candidate: app.candidate || { fullName: "Candidate", email: "", phone: "" },
                   job: {
                     title: rJob.title,
                     company: rJob.company,
@@ -104,18 +96,27 @@ export function RecruiterInProcess() {
 
   const handleScheduleInterview = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!selectedApplication) return;
 
     try {
-      const result = await apiClient.post('/interviews', {
-        applicationId: selectedApplication,
-        ...interviewForm,
-        status: 'scheduled',
+      const interviewDate = new Date(`${interviewForm.date}T${interviewForm.time}`);
+      const result = await apiClient.put(`/applications/${selectedApplication}/status`, {
+        status: "in-process",
+        interviewDate: interviewDate.toISOString(),
+        interviewType: interviewForm.type,
       });
 
-      if (result.success || result._id || result.id) {
-        toast.success("Interview scheduled successfully!");
+      if (result.success) {
+        if (result.calendarEventCreated && result.application?.interviewLink) {
+          toast.success("Interview scheduled, Meet link generated, and reminder added to candidate Google Calendar.");
+        } else if (result.calendarEventCreated) {
+          toast.success("Interview scheduled and reminder added to candidate Google Calendar.");
+        } else {
+          toast.warning("Interview was saved, but not added to the candidate Google Calendar.");
+        }
+        if (result.reminderWarning) toast.warning(result.reminderWarning);
         setShowScheduleModal(false);
-        setInterviewForm({ date: '', time: '', type: 'video' });
+        setInterviewForm({ date: "", time: "", type: "video" });
         fetchInProcessApplications();
       } else {
         toast.error(result.error || "Failed to schedule interview");
@@ -126,23 +127,28 @@ export function RecruiterInProcess() {
     }
   };
 
-  const handleSendAssessment = async (applicationId: string) => {
-    const title = prompt("Enter assessment title:");
-    if (!title) return;
-
-    const dueDate = prompt("Enter due date (YYYY-MM-DD):");
-    if (!dueDate) return;
+  const handleSendAssessment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedApplication) return;
 
     try {
-      const result = await apiClient.post('/assessments', {
-        applicationId,
-        title,
-        dueDate,
-        status: 'pending',
+      const dueDate = new Date(`${assessmentForm.dueDate}T09:00:00`);
+      const result = await apiClient.put(`/applications/${selectedApplication}/status`, {
+        status: "in-process",
+        assessmentTitle: assessmentForm.title,
+        assessmentDueDate: dueDate.toISOString(),
+        assessmentLink: assessmentForm.link,
       });
 
-      if (result.success || result._id || result.id) {
-        toast.success("Assessment sent successfully!");
+      if (result.success) {
+        if (result.calendarEventCreated) {
+          toast.success("Assessment sent and reminder added to candidate Google Calendar.");
+        } else {
+          toast.warning("Assessment was saved, but not added to the candidate Google Calendar.");
+        }
+        if (result.reminderWarning) toast.warning(result.reminderWarning);
+        setShowAssessmentModal(false);
+        setAssessmentForm({ title: "", dueDate: "", link: "" });
         fetchInProcessApplications();
       } else {
         toast.error(result.error || "Failed to send assessment");
@@ -203,76 +209,74 @@ export function RecruiterInProcess() {
                   </span>
                 </div>
 
-                {/* Interviews */}
-                {app.interviews && app.interviews.length > 0 && (
+                {app.interviewDate && (
                   <div className="mb-4 p-4 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
                     <h4 className="font-semibold text-purple-900 dark:text-purple-300 mb-3 flex items-center gap-2">
                       <Video className="w-4 h-4" />
-                      Scheduled Interviews
+                      Scheduled Interview
                     </h4>
-                    <div className="space-y-2">
-                      {app.interviews.map((interview) => (
-                        <div key={interview.id} className="flex items-center justify-between text-sm">
-                          <div>
-                            <span className="text-purple-900 dark:text-purple-300 font-medium">
-                              {interview.type.charAt(0).toUpperCase() + interview.type.slice(1)} Interview
-                            </span>
-                            <span className="text-purple-700 dark:text-purple-400 ml-3">
-                              {interview.date} at {interview.time}
-                            </span>
-                          </div>
-                          <span className={`px-2 py-1 rounded text-xs ${interview.status === 'completed'
-                            ? 'bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-300'
-                            : 'bg-yellow-100 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-300'
-                            }`}>
-                            {interview.status}
-                          </span>
-                        </div>
-                      ))}
+                    <div className="flex items-center justify-between text-sm">
+                      <div>
+                        <span className="text-purple-900 dark:text-purple-300 font-medium">
+                          {(app.interviewType || "video").charAt(0).toUpperCase() + (app.interviewType || "video").slice(1)} Interview
+                        </span>
+                        <span className="text-purple-700 dark:text-purple-400 ml-3">
+                          {new Date(app.interviewDate).toLocaleString()}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        {app.interviewLink && (
+                          <a
+                            href={app.interviewLink}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-purple-700 dark:text-purple-300 underline"
+                          >
+                            Open link
+                          </a>
+                        )}
+                        <span className="px-2 py-1 rounded text-xs bg-yellow-100 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-300">
+                          scheduled
+                        </span>
+                      </div>
                     </div>
                   </div>
                 )}
 
-                {/* Assessments */}
-                {app.assessments && app.assessments.length > 0 && (
+                {app.assessmentTitle && (
                   <div className="mb-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
                     <h4 className="font-semibold text-blue-900 dark:text-blue-300 mb-3 flex items-center gap-2">
                       <FileText className="w-4 h-4" />
-                      Online Assessments
+                      Online Assessment
                     </h4>
-                    <div className="space-y-2">
-                      {app.assessments.map((assessment) => (
-                        <div key={assessment.id} className="flex items-center justify-between text-sm">
-                          <div>
-                            <span className="text-blue-900 dark:text-blue-300 font-medium">
-                              {assessment.title}
-                            </span>
-                            <span className="text-blue-700 dark:text-blue-400 ml-3">
-                              Due: {assessment.dueDate}
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            {assessment.score && (
-                              <span className="text-blue-900 dark:text-blue-300 font-semibold">
-                                Score: {assessment.score}%
-                              </span>
-                            )}
-                            <span className={`px-2 py-1 rounded text-xs ${assessment.status === 'evaluated'
-                              ? 'bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-300'
-                              : assessment.status === 'submitted'
-                                ? 'bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300'
-                                : 'bg-yellow-100 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-300'
-                              }`}>
-                              {assessment.status}
-                            </span>
-                          </div>
-                        </div>
-                      ))}
+                    <div className="flex items-center justify-between text-sm">
+                      <div>
+                        <span className="text-blue-900 dark:text-blue-300 font-medium">
+                          {app.assessmentTitle}
+                        </span>
+                        <span className="text-blue-700 dark:text-blue-400 ml-3">
+                          Due: {app.assessmentDueDate ? new Date(app.assessmentDueDate).toLocaleDateString() : ""}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        {app.assessmentLink && (
+                          <a
+                            href={app.assessmentLink}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-blue-700 dark:text-blue-300 underline"
+                          >
+                            Open OA
+                          </a>
+                        )}
+                        <span className="px-2 py-1 rounded text-xs bg-yellow-100 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-300">
+                          pending
+                        </span>
+                      </div>
                     </div>
                   </div>
                 )}
 
-                {/* Actions */}
                 <div className="flex gap-2 flex-wrap">
                   <button
                     onClick={() => {
@@ -285,7 +289,10 @@ export function RecruiterInProcess() {
                     Schedule Interview
                   </button>
                   <button
-                    onClick={() => handleSendAssessment(app.id)}
+                    onClick={() => {
+                      setSelectedApplication(app.id);
+                      setShowAssessmentModal(true);
+                    }}
                     className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
                   >
                     <FileText className="w-4 h-4" />
@@ -322,7 +329,6 @@ export function RecruiterInProcess() {
         )}
       </div>
 
-      {/* Schedule Interview Modal */}
       {showScheduleModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full p-6">
@@ -336,7 +342,7 @@ export function RecruiterInProcess() {
                 </label>
                 <select
                   value={interviewForm.type}
-                  onChange={(e) => setInterviewForm({ ...interviewForm, type: e.target.value as any })}
+                  onChange={(e) => setInterviewForm({ ...interviewForm, type: e.target.value as "phone" | "video" | "in-person" })}
                   className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
                 >
                   <option value="video">Video Call</option>
@@ -371,12 +377,16 @@ export function RecruiterInProcess() {
                 />
               </div>
 
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                Video interviews will generate a Google Meet link and add a reminder to the candidate's Google Calendar when their account is connected.
+              </p>
+
               <div className="flex gap-2">
                 <button
                   type="button"
                   onClick={() => {
                     setShowScheduleModal(false);
-                    setInterviewForm({ date: '', time: '', type: 'video' });
+                    setInterviewForm({ date: "", time: "", type: "video" });
                   }}
                   className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700"
                 >
@@ -387,6 +397,77 @@ export function RecruiterInProcess() {
                   className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
                 >
                   Schedule
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {showAssessmentModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full p-6">
+            <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
+              Send Online Assessment
+            </h3>
+            <form onSubmit={handleSendAssessment} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Assessment Title
+                </label>
+                <input
+                  required
+                  value={assessmentForm.title}
+                  onChange={(e) => setAssessmentForm({ ...assessmentForm, title: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Due Date
+                </label>
+                <input
+                  type="date"
+                  required
+                  value={assessmentForm.dueDate}
+                  onChange={(e) => setAssessmentForm({ ...assessmentForm, dueDate: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  OA Link
+                </label>
+                <input
+                  type="url"
+                  required
+                  value={assessmentForm.link}
+                  onChange={(e) => setAssessmentForm({ ...assessmentForm, link: e.target.value })}
+                  placeholder="https://..."
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white"
+                />
+              </div>
+
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                The candidate will get a Google Calendar reminder containing the OA link when their account is connected.
+              </p>
+
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowAssessmentModal(false);
+                    setAssessmentForm({ title: "", dueDate: "", link: "" });
+                  }}
+                  className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                >
+                  Send OA
                 </button>
               </div>
             </form>

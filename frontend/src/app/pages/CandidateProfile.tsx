@@ -1,44 +1,84 @@
 import { useState, useEffect } from "react";
 import { useSearchParams, useLocation } from "react-router-dom";
 import { DashboardHeader } from "../components/DashboardHeader";
-import { User, Mail, Phone, MapPin, Briefcase, GraduationCap, Award, Edit2, Save, Upload, Sparkles, Camera } from "lucide-react";
+import { User, Mail, Phone, Briefcase, GraduationCap, Award, Edit2, Save, Sparkles, Camera } from "lucide-react";
 import { toast } from "sonner";
-import { extractTextFromPDF, parseResumeProfile } from "../../utils/resumeParser";
+import { apiClient } from "../../utils/apiClient";
+import { getAuthToken } from "../../utils/authStorage";
 
 export function CandidateProfile() {
+  const splitProjectsAndSkills = (
+    projects: Array<{ name?: string; description?: string }>,
+    technicalSkills: string[]
+  ) => {
+    const skills = [...technicalSkills];
+    const filteredProjects: Array<{ name: string; description: string }> = [];
+    const skillSet = new Set(skills.map((s) => s.trim().toLowerCase()).filter(Boolean));
+    const skillHeadingRegex = /technical\s*skills?|skills?\s*&\s*interests?|languages?|tools?|frameworks?|technologies?/i;
+    const sentenceLikeRegex = /^(built|developed|engineered|implemented|designed|created|worked|optimized|and)\b/i;
+    const extractSkillsFromText = (text: string) =>
+      String(text || "")
+        .replace(/^(technical\s*skills?|skills?\s*&\s*interests?|languages?|tools?|frameworks?|technologies?)\s*:\s*/i, "")
+        .split(/[,/|;•]+/)
+        .map((s) => s.trim())
+        .filter(Boolean);
+
+    for (const project of projects || []) {
+      const name = String(project?.name || "").trim();
+      const description = String(project?.description || "").trim();
+      if (!name && !description) continue;
+
+      const nameKey = name.toLowerCase();
+      const headingLike = skillHeadingRegex.test(name) || skillHeadingRegex.test(description);
+      const extractedFromName = extractSkillsFromText(name);
+      const extractedFromDescription = extractSkillsFromText(description);
+      const likelySkillsList =
+        headingLike ||
+        (!!name && /^languages?\s*:/i.test(name)) ||
+        (!!description && /^languages?\s*:/i.test(description));
+      const looksLikeSkillOnly =
+        !!name &&
+        (
+          likelySkillsList ||
+          (!description && skillSet.has(nameKey))
+        );
+
+      if (looksLikeSkillOnly) {
+        const candidates = [...extractedFromName, ...extractedFromDescription];
+        if (candidates.length === 0 && name) {
+          candidates.push(name);
+        }
+        for (const item of candidates) {
+          if (!item || sentenceLikeRegex.test(item) || item.split(/\s+/).length > 6) continue;
+          const k = item.toLowerCase();
+          if (!skillSet.has(k)) {
+            skillSet.add(k);
+            skills.push(item);
+          }
+        }
+      } else {
+        filteredProjects.push({ name, description });
+      }
+    }
+
+    return { projects: filteredProjects, technicalSkills: skills };
+  };
   const [isEditing, setIsEditing] = useState(false);
   const [profile, setProfile] = useState({
-    name: "John Doe",
-    email: "john.doe@example.com",
-    phone: "+1 (555) 123-4567",
-    location: "San Francisco, CA",
-    title: "Senior Frontend Developer",
-    summary: "Passionate frontend developer with 5+ years of experience building modern web applications. Specialized in React, TypeScript, and performance optimization.",
-    experience: [
-      {
-        title: "Senior Frontend Developer",
-        company: "Tech Corp",
-        period: "2021 - Present",
-        description: "Led development of customer-facing web applications using React and TypeScript"
-      },
-      {
-        title: "Frontend Developer",
-        company: "StartupXYZ",
-        period: "2019 - 2021",
-        description: "Built and maintained responsive web applications"
-      }
-    ],
-    education: [
-      {
-        degree: "Bachelor of Science in Computer Science",
-        institution: "Stanford University",
-        year: "2019"
-      }
-    ],
-    skills: [
-      "React", "TypeScript", "JavaScript", "HTML/CSS", "Node.js",
-      "Git", "REST APIs", "Responsive Design", "Performance Optimization"
-    ]
+    name: "",
+    email: "",
+    phone: "",
+    githubUrl: "",
+    linkedinUrl: "",
+    location: "",
+    title: "",
+    summary: "",
+    experience: [] as Array<{ title: string; company: string; period: string; description: string }>,
+    education: [] as Array<{ degree: string; institution: string; year: string }>,
+    projects: [] as Array<{ name: string; description: string }>,
+    extraCurricular: [] as string[],
+    technicalSkills: [] as string[],
+    skills: [] as string[]
   });
 
   const [isParsing, setIsParsing] = useState(false);
@@ -53,8 +93,30 @@ export function CandidateProfile() {
   useEffect(() => {
     if (candidateId) {
       fetchCandidateProfile(candidateId);
+      return;
     }
+    fetchOwnProfile();
   }, [candidateId]);
+
+  const fetchOwnProfile = async () => {
+    try {
+      const data = await apiClient.get('/candidate/profile');
+      if (data?.profile) {
+        setProfile((prev) => ({
+          ...prev,
+          ...data.profile,
+          experience: Array.isArray(data.profile.experience) ? data.profile.experience : [],
+          education: Array.isArray(data.profile.education) ? data.profile.education : [],
+          projects: Array.isArray(data.profile.projects) ? data.profile.projects : [],
+          extraCurricular: Array.isArray(data.profile.extraCurricular) ? data.profile.extraCurricular : [],
+          technicalSkills: Array.isArray(data.profile.technicalSkills) ? data.profile.technicalSkills : (Array.isArray(data.profile.skills) ? data.profile.skills : []),
+          skills: Array.isArray(data.profile.skills) ? data.profile.skills : []
+        }));
+      }
+    } catch (error) {
+      console.error("Error fetching own profile:", error);
+    }
+  };
 
   const fetchCandidateProfile = async (id: string) => {
     try {
@@ -83,50 +145,366 @@ export function CandidateProfile() {
     }
   };
 
-  const handleSave = () => {
-    setIsEditing(false);
-    toast.success("Profile updated successfully!");
+  const handleSave = async () => {
+    try {
+      const payload = {
+        ...profile,
+        technicalSkills: visibleTechnicalSkills,
+        skills: visibleTechnicalSkills,
+        projects: normalizedProjects
+      };
+      const data = await apiClient.put('/candidate/profile', payload);
+      if (data?.profile) {
+        setProfile((prev) => ({
+          ...prev,
+          ...data.profile,
+          experience: Array.isArray(data.profile.experience) ? data.profile.experience : [],
+          education: Array.isArray(data.profile.education) ? data.profile.education : [],
+          projects: Array.isArray(data.profile.projects) ? data.profile.projects : [],
+          extraCurricular: Array.isArray(data.profile.extraCurricular) ? data.profile.extraCurricular : [],
+          technicalSkills: Array.isArray(data.profile.technicalSkills) ? data.profile.technicalSkills : (Array.isArray(data.profile.skills) ? data.profile.skills : []),
+          skills: Array.isArray(data.profile.skills) ? data.profile.skills : []
+        }));
+      }
+      setIsEditing(false);
+      toast.success("Profile updated successfully!");
+    } catch (error) {
+      console.error("Error saving profile:", error);
+      toast.error("Failed to update profile");
+    }
   };
 
   const handleSimulateResumeParse = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.type === "application/pdf") {
-      setIsParsing(true);
-      toast.loading("AI is parsing your resume...", { id: "parse-toast" });
-
-      try {
-        const text = await extractTextFromPDF(file);
-        const parsedData = parseResumeProfile(text);
-
-        setProfile(prev => ({
-          ...prev,
-          name: parsedData.fullName || prev.name,
-          email: parsedData.email || prev.email,
-          phone: parsedData.phone || prev.phone,
-          skills: parsedData.skills.length > 0 ? Array.from(new Set([...prev.skills, ...parsedData.skills])) : prev.skills
-        }));
-
-        if (parsedData.fullName || parsedData.skills.length > 0) {
-          toast.success("Resume parsed! We've updated your profile details.", { id: "parse-toast" });
-        } else {
-          toast.error("Couldn't extract recognizable details from PDF.", { id: "parse-toast" });
-        }
-      } catch (err) {
-        console.error("PDF Parsing failed:", err);
-        toast.error("Failed to read PDF file.", { id: "parse-toast" });
-      } finally {
-        setIsParsing(false);
-      }
-    } else {
+    if (file.type !== "application/pdf") {
       toast.info("Only PDF files support auto-parsing currently.");
+      return;
+    }
+
+    setIsParsing(true);
+    toast.loading("AI is parsing your resume...", { id: "parse-toast" });
+    try {
+      const token = getAuthToken();
+      if (!token) throw new Error('No auth token');
+
+      const fd = new FormData();
+      fd.append('resume', file);
+      const resp = await fetch('http://localhost:5000/api/upload-resume', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body: fd
+      });
+      const data = await resp.json().catch(() => null);
+      if (!resp.ok) {
+        throw new Error(data?.message || `Resume upload failed (${resp.status})`);
+      }
+      if (data?.success && data?.candidate) {
+        setProfile((prev) => ({
+          ...prev,
+          ...data.candidate,
+          experience: Array.isArray(data.candidate.experience) ? data.candidate.experience : [],
+          education: Array.isArray(data.candidate.education) ? data.candidate.education : [],
+          projects: Array.isArray(data.candidate.projects) ? data.candidate.projects : [],
+          extraCurricular: Array.isArray(data.candidate.extraCurricular) ? data.candidate.extraCurricular : [],
+          technicalSkills: Array.isArray(data.candidate.technicalSkills) ? data.candidate.technicalSkills : (Array.isArray(data.candidate.skills) ? data.candidate.skills : []),
+          skills: Array.isArray(data.candidate.skills) ? data.candidate.skills : []
+        }));
+        toast.success("Resume parsed with Gemini and profile saved.", { id: "parse-toast" });
+      } else {
+        throw new Error(data?.message || data?.error || 'Resume upload failed');
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error(err instanceof Error ? err.message : "Failed to parse/upload resume file. Try another PDF.", { id: "parse-toast" });
+    } finally {
+      setIsParsing(false);
     }
   };
 
   const handlePhotoUpload = () => {
     toast.success("Photo updated successfully!");
   };
+
+  const normalizeExternalUrl = (url: string) => {
+    const trimmed = String(url || "").trim();
+    if (!trimmed) return "";
+    if (/^https?:\/\//i.test(trimmed)) return trimmed;
+    return `https://${trimmed}`;
+  };
+
+  const githubUrl = normalizeExternalUrl(profile.githubUrl || "");
+  const linkedinUrl = normalizeExternalUrl(profile.linkedinUrl || "");
+
+  const visibleExperience = (profile.experience || []).filter(
+    (exp) => exp?.title || exp?.company || exp?.period || exp?.description
+  );
+  const normalizeExperienceItem = (exp: any) => {
+    const directTitle = String(exp?.title || "").trim();
+    const directCompany = String(exp?.company || "").trim();
+    const directPeriod = String(exp?.period || "").trim();
+    const directDescription = String(exp?.description || "").trim();
+
+    const hasStructuredFields = directTitle || directCompany || directPeriod;
+    const source = [directTitle, directCompany, directPeriod, directDescription]
+      .filter(Boolean)
+      .join(" ")
+      .replace(/\s+/g, " ")
+      .trim();
+
+    if (!source) {
+      return { title: "Role", company: "Company", period: "", description: "" };
+    }
+
+    const dashSplit = source.split(/\s*[—-]\s*/);
+    const left = dashSplit[0]?.trim() || "";
+    const right = dashSplit.slice(1).join(" - ").trim();
+
+    const periodMatch = left.match(/\b(19|20)\d{2}\s*[-–—]?\s*(present|current|(19|20)\d{2})?\b/i);
+    const matchedPeriod = periodMatch?.[0] || "";
+    const parsedPeriod = matchedPeriod ? matchedPeriod.replace(/\s+/g, "") : directPeriod;
+    const leftWithoutPeriod = matchedPeriod ? left.replace(matchedPeriod, "").trim() : left;
+
+    let company = directCompany;
+    let title = directTitle;
+    let description = directDescription || right;
+
+    if (!hasStructuredFields || (directTitle && directTitle.toLowerCase() === "role")) {
+      const roleKeywords = [
+        "co-founder", "founder", "member", "intern", "engineer", "developer",
+        "manager", "lead", "analyst", "consultant", "designer", "researcher"
+      ];
+      const parts = leftWithoutPeriod.split(/\s+/).filter(Boolean);
+      const lower = leftWithoutPeriod.toLowerCase();
+
+      let roleStart = -1;
+      for (const key of roleKeywords) {
+        const idx = lower.indexOf(key);
+        if (idx >= 0) {
+          roleStart = idx;
+          break;
+        }
+      }
+
+      if (roleStart >= 0) {
+        company = leftWithoutPeriod.slice(0, roleStart).trim() || company;
+        const roleAndMaybeLocation = leftWithoutPeriod.slice(roleStart).trim();
+        const roleTokens = roleAndMaybeLocation.split(/\s+/);
+        title = roleTokens.slice(0, 2).join(" ").trim() || title;
+      } else {
+        if (!company && parts.length) company = parts.slice(0, Math.max(1, parts.length - 1)).join(" ");
+        if (!title && parts.length) title = parts[parts.length - 1];
+      }
+    }
+
+    company = company || "Company";
+    title = title || "Role";
+    description = description || "";
+
+    return {
+      title,
+      company,
+      period: parsedPeriod || directPeriod || "",
+      description
+    };
+  };
+  const normalizedExperience = visibleExperience.map(normalizeExperienceItem);
+  const visibleEducation = (profile.education || []).filter(
+    (edu) => edu?.degree || edu?.institution || edu?.year
+  );
+  const visibleProjects = (profile.projects || []).filter(
+    (project) => project?.name || project?.description
+  );
+  const isGenericProjectTitle = (value: string) => {
+    const v = String(value || "").trim().toLowerCase();
+    return !v || v === "project";
+  };
+  const cleanProjectDescription = (value: string) =>
+    String(value || "").replace(/^[\s\-–•]+/, "").trim();
+  const normalizeProjectsForDisplay = (
+    projects: Array<{ name?: string; description?: string }>
+  ) => {
+    const result: Array<{ name: string; description: string }> = [];
+    const looksLikeDescriptionOnly = (text: string) =>
+      /^(built|developed|developing|engineered|implemented|designed|created|worked|optimized|led|conducted)\b/i.test(text.trim());
+    const looksLikeContinuation = (text: string) =>
+      /^(and|with|using|featuring|including|through|developing)\b/i.test(text.trim().toLowerCase());
+    const startsLowercaseSentence = (text: string) => /^[a-z]/.test(text.trim());
+    for (let i = 0; i < projects.length; i++) {
+      const current = projects[i];
+      const rawName = String(current?.name || "").trim();
+      const rawDescription = String(current?.description || "").trim();
+      const genericTitle = isGenericProjectTitle(rawName);
+
+      let title = rawName;
+      let description = cleanProjectDescription(rawDescription);
+
+      // Handle parser output like: "Titanic Survival Prediction: ...".
+      if (genericTitle && rawDescription.includes(":")) {
+        const [maybeTitle, ...rest] = rawDescription.split(":");
+        const extractedTitle = String(maybeTitle || "").trim();
+        if (extractedTitle) {
+          title = extractedTitle;
+          description = cleanProjectDescription(rest.join(":"));
+        }
+      }
+
+      // Handle next-line bullet descriptions paired with generic-title rows.
+      const next = projects[i + 1];
+      const nextName = String(next?.name || "").trim();
+      const nextDescription = String(next?.description || "").trim();
+      if (
+        next &&
+        isGenericProjectTitle(nextName) &&
+        /^[\s\-–•]/.test(nextDescription) &&
+        !isGenericProjectTitle(title)
+      ) {
+        description = cleanProjectDescription(nextDescription);
+        i += 1;
+      }
+
+      // Merge description-only standalone entries into the previous project.
+      if (
+        !description &&
+        looksLikeDescriptionOnly(title) &&
+        result.length > 0
+      ) {
+        const prev = result[result.length - 1];
+        prev.description = prev.description
+          ? `${prev.description} ${title}`.trim()
+          : title;
+        continue;
+      }
+
+      if (
+        !description &&
+        looksLikeContinuation(title) &&
+        result.length > 0
+      ) {
+        const prev = result[result.length - 1];
+        prev.description = prev.description
+          ? `${prev.description} ${title}`.trim()
+          : title;
+        continue;
+      }
+
+      if (
+        !description &&
+        startsLowercaseSentence(title) &&
+        result.length > 0
+      ) {
+        const prev = result[result.length - 1];
+        prev.description = prev.description
+          ? `${prev.description} ${title}`.trim()
+          : title;
+        continue;
+      }
+
+      if (!isGenericProjectTitle(title) || description) {
+        result.push({
+          name: isGenericProjectTitle(title) ? "Project" : title,
+          description
+        });
+      }
+    }
+    return result;
+  };
+  const moveProjectLikeSkillsToProjects = (
+    technicalSkills: string[],
+    projects: Array<{ name?: string; description?: string }>
+  ) => {
+    const remainingSkills: string[] = [];
+    const projectList: Array<{ name: string; description: string }> = (projects || [])
+      .map((p) => ({ name: String(p?.name || "").trim(), description: String(p?.description || "").trim() }))
+      .filter((p) => p.name || p.description);
+
+    const headingNoise = /technical\s*skills?|skills?\s*&\s*interests?|soft\s*skills?/i;
+    const projectTitleLike = /(prediction|project|engine|model|analysis|classification|regression)/i;
+    const descriptionLike = /^(built|developed|engineered|implemented|designed|created|worked|optimized|\-)/i;
+
+    for (let i = 0; i < (technicalSkills || []).length; i++) {
+      const item = String(technicalSkills[i] || "").trim();
+      if (!item) continue;
+      if (headingNoise.test(item)) continue;
+
+      const next = String(technicalSkills[i + 1] || "").trim();
+      const isProjectTitle = item.includes(":") && projectTitleLike.test(item);
+      const isLongProjectish = false;
+
+      if (isProjectTitle || isLongProjectish) {
+        const [namePart, ...descParts] = item.split(":");
+        let name = namePart.trim();
+        let description = descParts.join(":").trim();
+
+        if (!name) name = item;
+        if (!description && next && descriptionLike.test(next)) {
+          description = next.replace(/^[\-\s]+/, "").trim();
+          i += 1;
+        }
+
+        projectList.push({ name, description });
+        continue;
+      }
+
+      if (descriptionLike.test(item) && projectList.length > 0 && !projectList[projectList.length - 1].description) {
+        projectList[projectList.length - 1].description = item.replace(/^[\-\s]+/, "").trim();
+        continue;
+      }
+
+      if (item.split(/\s+/).length > 6 && !/[+#]/.test(item)) {
+        continue;
+      }
+
+      remainingSkills.push(item);
+    }
+
+    const dedupSkills = [...new Set(remainingSkills)];
+    return { technicalSkills: dedupSkills, projects: projectList };
+  };
+  const baseTechnicalSkills = (profile.technicalSkills?.length
+    ? profile.technicalSkills
+    : profile.skills || []
+  ).filter(Boolean);
+  const normalizedForView = splitProjectsAndSkills(visibleProjects, baseTechnicalSkills);
+  const moved = moveProjectLikeSkillsToProjects(
+    normalizedForView.technicalSkills,
+    normalizedForView.projects
+  );
+  const normalizeSkillLabel = (skill: string) => {
+    const raw = String(skill || "").trim();
+    const key = raw.toLowerCase();
+    const map: Record<string, string> = {
+      "feature encoding": "Feature Encoding",
+      "early stopping": "Early Stopping",
+      "gradient descent": "Gradient Descent",
+      "logistic regression": "Logistic Regression",
+      "linear regression": "Linear Regression",
+      "machine learning": "Machine Learning",
+      "deep learning": "Deep Learning",
+      "data structures and algorithm": "Data Structures and Algorithms",
+      "data structures and algorithms": "Data Structures and Algorithms",
+      "git/github": "Git/GitHub",
+      "c/c++": "C/C++"
+    };
+    return map[key] || raw;
+  };
+  const normalizedProjects = normalizeProjectsForDisplay(moved.projects);
+  const projectTextForFiltering = normalizedProjects
+    .map((p) => `${String(p?.name || "")} ${String(p?.description || "")}`.toLowerCase())
+    .join(" ");
+  const methodTerms = new Set(["early stopping", "feature encoding"]);
+  const visibleTechnicalSkills = [
+    ...new Set(
+      moved.technicalSkills
+        .map(normalizeSkillLabel)
+        .filter((skill) => {
+          const k = String(skill || "").toLowerCase();
+          return !(methodTerms.has(k) && projectTextForFiltering.includes(k));
+        })
+    )
+  ];
+  const visibleExtraCurricular = (profile.extraCurricular || []).filter(Boolean);
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
@@ -183,7 +561,7 @@ export function CandidateProfile() {
                       {profile.title}
                     </p>
                   )}
-                  <div className="flex flex-wrap gap-4 text-sm text-gray-600 dark:text-gray-400">
+                  <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600 dark:text-gray-400">
                     <div className="flex items-center gap-1">
                       <Mail className="w-4 h-4" />
                       <span>{profile.email}</span>
@@ -192,10 +570,21 @@ export function CandidateProfile() {
                       <Phone className="w-4 h-4" />
                       <span>{profile.phone}</span>
                     </div>
-                    <div className="flex items-center gap-1">
-                      <MapPin className="w-4 h-4" />
-                      <span>{profile.location}</span>
-                    </div>
+                    {profile.location && <span>{profile.location}</span>}
+                    {(githubUrl || linkedinUrl) && (
+                      <span className="inline-flex items-center gap-3 whitespace-nowrap">
+                        {githubUrl && (
+                          <a className="underline font-medium" href={githubUrl} target="_blank" rel="noreferrer noopener">
+                            GitHub Profile
+                          </a>
+                        )}
+                        {linkedinUrl && (
+                          <a className="underline font-medium" href={linkedinUrl} target="_blank" rel="noreferrer noopener">
+                            LinkedIn Profile
+                          </a>
+                        )}
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>
@@ -270,24 +659,24 @@ export function CandidateProfile() {
                 Work Experience
               </h2>
             </div>
-            <div className="space-y-6">
-              {profile.experience.map((exp, index) => (
-                <div key={index}>
-                  <h3 className="font-semibold text-gray-900 dark:text-white">
-                    {exp.title}
-                  </h3>
-                  <p className="text-gray-600 dark:text-gray-400 mb-1">
-                    {exp.company}
-                  </p>
-                  <p className="text-sm text-gray-500 dark:text-gray-500 mb-2">
-                    {exp.period}
-                  </p>
-                  <p className="text-gray-600 dark:text-gray-400">
-                    {exp.description}
-                  </p>
-                </div>
-              ))}
-            </div>
+            {normalizedExperience.length === 0 ? (
+              <p className="text-gray-500 dark:text-gray-400">No experience added yet.</p>
+            ) : (
+              <div className="space-y-6">
+                {normalizedExperience.map((exp, index) => (
+                  <div key={index} className="rounded-lg border border-gray-200 dark:border-gray-700 p-4">
+                    <h3 className="font-semibold text-gray-900 dark:text-white">{exp.title}</h3>
+                    <p className="text-gray-600 dark:text-gray-400 mb-1">{exp.company}</p>
+                    {exp.period && <p className="text-sm text-gray-500 dark:text-gray-500 mb-2">{exp.period}</p>}
+                    {exp.description && (
+                      <p className="text-gray-600 dark:text-gray-400">
+                        {String(exp.description)}
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Education */}
@@ -298,21 +687,19 @@ export function CandidateProfile() {
                 Education
               </h2>
             </div>
-            <div className="space-y-4">
-              {profile.education.map((edu, index) => (
-                <div key={index}>
-                  <h3 className="font-semibold text-gray-900 dark:text-white">
-                    {edu.degree}
-                  </h3>
-                  <p className="text-gray-600 dark:text-gray-400">
-                    {edu.institution}
-                  </p>
-                  <p className="text-sm text-gray-500 dark:text-gray-500">
-                    {edu.year}
-                  </p>
-                </div>
-              ))}
-            </div>
+            {visibleEducation.length === 0 ? (
+              <p className="text-gray-500 dark:text-gray-400">No education added yet.</p>
+            ) : (
+              <div className="space-y-4">
+                {visibleEducation.map((edu, index) => (
+                  <div key={index} className="rounded-lg border border-gray-200 dark:border-gray-700 p-4">
+                    <h3 className="font-semibold text-gray-900 dark:text-white">{edu.degree || "Degree"}</h3>
+                    <p className="text-gray-600 dark:text-gray-400">{edu.institution || "Institution"}</p>
+                    {edu.year && <p className="text-sm text-gray-500 dark:text-gray-500">{edu.year}</p>}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Skills */}
@@ -320,22 +707,59 @@ export function CandidateProfile() {
             <div className="flex items-center gap-2 mb-6">
               <Award className="w-5 h-5 text-gray-600 dark:text-gray-400" />
               <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-                Skills
+                Technical Skills
               </h2>
             </div>
-            <div className="flex flex-wrap gap-2">
-              {profile.skills.map((skill, index) => (
+            {visibleTechnicalSkills.length === 0 ? (
+              <p className="text-gray-500 dark:text-gray-400">No technical skills added yet.</p>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                {visibleTechnicalSkills.map((skill, index) => (
                 <span
                   key={index}
                   className="px-3 py-1 bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 rounded-full text-sm"
                 >
                   {skill}
                 </span>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Projects */}
+          <div className="p-8 border-t border-gray-200 dark:border-gray-700">
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">Projects</h2>
+            {normalizedProjects.length === 0 ? (
+              <p className="text-gray-500 dark:text-gray-400">No projects added yet.</p>
+            ) : (
+              <div className="space-y-4">
+                {normalizedProjects.map((project, index) => (
+                  <div key={index} className="rounded-lg border border-gray-200 dark:border-gray-700 p-4">
+                    <h3 className="font-semibold text-gray-900 dark:text-white">{project.name || "Project"}</h3>
+                    {project.description && <p className="text-gray-600 dark:text-gray-400">{String(project.description)}</p>}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Extra Curricular */}
+          <div className="p-8 border-t border-gray-200 dark:border-gray-700">
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">Extra Curricular</h2>
+            {visibleExtraCurricular.length === 0 ? (
+              <p className="text-gray-500 dark:text-gray-400">No extra curricular activities added yet.</p>
+            ) : (
+              <ul className="list-disc pl-5 text-gray-600 dark:text-gray-400 space-y-1">
+                {visibleExtraCurricular.map((item, index) => (
+                  <li key={index}>{item}</li>
+                ))}
+              </ul>
+            )}
           </div>
         </div>
       </div >
     </div >
   );
 }
+
+

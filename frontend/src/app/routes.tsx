@@ -6,7 +6,10 @@ import { RecruiterSignIn } from "./pages/RecruiterSignIn";
 import { RecruiterSignUp } from "./pages/RecruiterSignUp";
 import { CandidateDashboard } from "./pages/CandidateDashboard";
 import { RecruiterDashboard } from "./pages/RecruiterDashboard";
+import { RecruiterProfile } from "./pages/RecruiterProfile";
 import { CandidateProfile } from "./pages/CandidateProfile";
+import { CandidateCompleteProfile } from "./pages/CandidateCompleteProfile";
+import { RecruiterCompleteCompany } from "./pages/RecruiterCompleteCompany";
 import { MyApplications } from "./pages/MyApplications";
 import { InProcess } from "./pages/InProcess";
 import { OfferLetters } from "./pages/OfferLetters";
@@ -21,6 +24,7 @@ import { RecruiterInProcess } from "./pages/RecruiterInProcess";
 import { SendOfferLetter } from "./pages/SendOfferLetter";
 import { RecruiterOffers } from "./pages/RecruiterOffers";
 import { RecruiterMessages } from "./pages/RecruiterMessages";
+import { OAuthCallback } from "./pages/OAuthCallback";
 
 export const router = createBrowserRouter([
   {
@@ -72,6 +76,10 @@ export const router = createBrowserRouter([
     Component: Settings,
   },
   {
+    path: "/candidate/complete-profile",
+    Component: CandidateCompleteProfile,
+  },
+  {
     path: "/job/:id",
     Component: JobDetails,
   },
@@ -118,5 +126,17 @@ export const router = createBrowserRouter([
   {
     path: "/recruiter/settings",
     Component: Settings,
+  },
+  {
+    path: "/recruiter/profile",
+    Component: RecruiterProfile,
+  },
+  {
+    path: "/recruiter/complete-company",
+    Component: RecruiterCompleteCompany,
+  },
+  {
+    path: "/auth/oauth-callback",
+    Component: OAuthCallback,
   },
 ]);

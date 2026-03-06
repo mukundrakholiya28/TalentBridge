@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   User,
   Briefcase,
@@ -14,23 +14,28 @@ import {
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import logo from "../../assets/0ed04b30b5fcacaeb0065c439ebb8dc86719fd9d.png";
+import { clearAuthSession, setUserRoleForActiveSession } from "../../utils/authStorage";
 
 export function RecruiterHeader() {
   const navigate = useNavigate();
   const { theme, setTheme } = useTheme();
   const [showDropdown, setShowDropdown] = useState(false);
 
-  const handleLogout = () => {
-    // Clear authentication data
-    localStorage.removeItem("accessToken");
-    localStorage.removeItem("userRole");
-    localStorage.removeItem("userId");
+  useEffect(() => {
+    try {
+      setUserRoleForActiveSession("recruiter");
+    } catch (e) {
+      // ignore (SSR or privacy settings)
+    }
+  }, []);
 
-    // Navigate to home page
+  const handleLogout = () => {
+    clearAuthSession();
     navigate("/");
   };
 
   const menuItems = [
+    { icon: User, label: "Profile", path: "/recruiter/profile" },
     { icon: Briefcase, label: "My Jobs", path: "/recruiter/jobs" },
     { icon: Users, label: "All Applications", path: "/recruiter/applications" },
     { icon: FileText, label: "In Process Candidates", path: "/recruiter/in-process" },

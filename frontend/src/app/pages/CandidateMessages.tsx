@@ -4,6 +4,7 @@ import { DashboardHeader } from "../components/DashboardHeader";
 import { Send, Phone, Video, Mic, Building, Search } from "lucide-react";
 import { apiClient } from "../../utils/apiClient";
 import { toast } from "sonner";
+import { getAuthToken } from "../../utils/authStorage";
 
 interface Message {
     id: string;
@@ -44,7 +45,7 @@ export function CandidateMessages() {
     useEffect(() => {
         // Get current user id from token
         try {
-            const token = localStorage.getItem('accessToken') || localStorage.getItem('token');
+            const token = getAuthToken();
             if (token) {
                 const payload = JSON.parse(atob(token.split('.')[1]));
                 setCurrentUserId(payload.id || '');

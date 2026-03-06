@@ -2,6 +2,12 @@ const Application = require("../models/Application");
 const Job = require("../models/Job");
 const User = require("../models/User");
 const mongoose = require("mongoose");
+const {
+    createCalendarEventForUser,
+    createInterviewEventWithFallback,
+    buildInterviewEvent,
+    buildAssessmentEvent
+} = require("../utils/googleCalendar");
 
 
 /**
@@ -156,7 +162,13 @@ const getRecruiterApplications = async (req, res) => {
                 profile: {
                     skills: app.candidateId?.skills || [],
                 }
-            }
+            },
+            interviewLink: app.interviewLink || "",
+            interviewDate: app.interviewDate || null,
+            interviewType: app.interviewType || "video",
+            assessmentLink: app.assessmentLink || "",
+            assessmentDueDate: app.assessmentDueDate || null,
+            assessmentTitle: app.assessmentTitle || ""
         }));
 
         res.json(mapped);
@@ -203,7 +215,13 @@ const getApplicationsForJob = async (req, res) => {
                 profile: {
                     skills: app.candidateId?.skills || [],
                 }
-            }
+            },
+            interviewLink: app.interviewLink || "",
+            interviewDate: app.interviewDate || null,
+            interviewType: app.interviewType || "video",
+            assessmentLink: app.assessmentLink || "",
+            assessmentDueDate: app.assessmentDueDate || null,
+            assessmentTitle: app.assessmentTitle || ""
         }));
 
         res.json(mapped);
@@ -222,22 +240,98 @@ const updateApplicationStatus = async (req, res) => {
         const { id } = req.params;
         const { status, interviewLink, interviewDate, interviewType, assessmentLink, assessmentDueDate, assessmentTitle } = req.body;
 
-        const application = await Application.findById(id);
+        const application = await Application.findById(id).populate("jobId", "title company");
         if (!application) {
             return res.status(404).json({ success: false, message: "Application not found" });
         }
 
+        const recruiterUser = await User.findOne({ id: req.user.id });
+        if (!recruiterUser) {
+            return res.status(404).json({ success: false, message: "Recruiter not found" });
+        }
+
+        if (!application.recruiterId.equals(recruiterUser._id)) {
+            return res.status(403).json({ success: false, message: "Not authorized for this application" });
+        }
+
+        const candidateUser = await User.findById(application.candidateId);
+        if (!candidateUser) {
+            return res.status(404).json({ success: false, message: "Candidate not found" });
+        }
+
         if (status) application.status = status;
-        if (interviewLink !== undefined) application.interviewLink = interviewLink;
+        let reminderWarning = "";
+        let calendarEventCreated = false;
+
         if (interviewDate !== undefined) application.interviewDate = interviewDate;
         if (interviewType !== undefined) application.interviewType = interviewType;
         if (assessmentLink !== undefined) application.assessmentLink = assessmentLink;
         if (assessmentDueDate !== undefined) application.assessmentDueDate = assessmentDueDate;
         if (assessmentTitle !== undefined) application.assessmentTitle = assessmentTitle;
 
+        if (interviewDate && interviewType) {
+            try {
+                const interviewStart = new Date(interviewDate);
+                const calendarResult = await createInterviewEventWithFallback({
+                    candidateUser,
+                    recruiterUser,
+                    event: buildInterviewEvent({
+                        application,
+                        candidateUser,
+                        recruiterUser,
+                        startDate: interviewStart,
+                        interviewType
+                    })
+                });
+
+                const calendarEvent = calendarResult.event;
+                if (calendarResult.warning) {
+                    reminderWarning = calendarResult.warning;
+                }
+
+                const generatedMeetLink =
+                    calendarEvent.hangoutLink ||
+                    calendarEvent.conferenceData?.entryPoints?.find((entry) => entry.entryPointType === "video")?.uri ||
+                    "";
+
+                if (interviewType === "video" && !generatedMeetLink) {
+                    throw new Error("Google Calendar event was created, but Google Meet link was not generated.");
+                }
+
+                application.interviewLink = generatedMeetLink || interviewLink || "";
+                calendarEventCreated = true;
+            } catch (error) {
+                console.error("Interview calendar event error:", error);
+                application.interviewLink = interviewLink || application.interviewLink;
+                reminderWarning = error.message || "Interview reminder could not be added to the candidate's Google Calendar.";
+            }
+        } else if (interviewLink !== undefined) {
+            application.interviewLink = interviewLink;
+        }
+
+        if (assessmentDueDate && (assessmentTitle !== undefined || assessmentLink !== undefined)) {
+            try {
+                await createCalendarEventForUser(
+                    candidateUser,
+                    buildAssessmentEvent({
+                        application,
+                        candidateUser,
+                        recruiterUser,
+                        dueDate: assessmentDueDate,
+                        assessmentTitle: assessmentTitle || application.assessmentTitle,
+                        assessmentLink: assessmentLink || application.assessmentLink
+                    })
+                );
+                calendarEventCreated = true;
+            } catch (error) {
+                console.error("Assessment calendar event error:", error);
+                reminderWarning = reminderWarning || error.message || "OA reminder could not be added to the candidate's Google Calendar.";
+            }
+        }
+
         await application.save();
 
-        res.json({ success: true, application });
+        res.json({ success: true, application, reminderWarning, calendarEventCreated });
     } catch (error) {
         console.error("Update Status Error:", error);
         res.status(500).json({ success: false });

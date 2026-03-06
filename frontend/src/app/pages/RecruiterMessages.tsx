@@ -4,6 +4,7 @@ import { RecruiterHeader } from "../components/RecruiterHeader";
 import { Send, Phone, Video, Mic, User, Search } from "lucide-react";
 import { apiClient } from "../../utils/apiClient";
 import { toast } from "sonner";
+import { getAuthToken } from "../../utils/authStorage";
 
 interface Message {
   id: string;
@@ -59,7 +60,7 @@ export function RecruiterMessages() {
   useEffect(() => {
     // Get current user id from JWT
     try {
-      const token = localStorage.getItem('accessToken') || localStorage.getItem('token');
+      const token = getAuthToken();
       if (token) {
         const payload = JSON.parse(atob(token.split('.')[1]));
         setCurrentUserId(payload.id || '');

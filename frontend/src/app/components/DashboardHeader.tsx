@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Briefcase,
@@ -17,11 +17,20 @@ import { useTheme } from "next-themes";
 import { ThemeToggle } from "./ThemeToggle";
 import { toast } from "sonner";
 import logo from "../../assets/0ed04b30b5fcacaeb0065c439ebb8dc86719fd9d.png";
+import { clearAuthSession, setUserRoleForActiveSession } from "../../utils/authStorage";
 
 export function DashboardHeader() {
   const navigate = useNavigate();
   const { theme, setTheme } = useTheme();
   const [showUserMenu, setShowUserMenu] = useState(false);
+
+  useEffect(() => {
+    try {
+      setUserRoleForActiveSession("candidate");
+    } catch (e) {
+      // ignore
+    }
+  }, []);
 
   const handleLogout = async () => {
     try {
@@ -29,10 +38,7 @@ export function DashboardHeader() {
     } catch (error) {
       console.error("Logout error:", error);
     } finally {
-      // Always clear local storage and navigate
-      localStorage.removeItem("accessToken");
-      localStorage.removeItem("userRole");
-      localStorage.removeItem("userId");
+      clearAuthSession();
       navigate("/");
     }
   };

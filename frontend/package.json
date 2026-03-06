@@ -5,7 +5,9 @@
   "type": "module",
   "scripts": {
     "build": "vite build",
-    "dev": "vite"
+    "dev": "vite",
+    "test": "vitest",
+    "e2e:puppeteer": "node ./scripts/check_header_puppeteer.js"
   },
   "dependencies": {
     "@emotion/react": "11.14.0",
@@ -71,7 +73,16 @@
     "@vitejs/plugin-react": "4.7.0",
     "tailwindcss": "4.1.12",
     "vite": "6.3.5",
-    "vite-plugin-top-level-await": "^1.6.0"
+    "vite-plugin-top-level-await": "^1.6.0",
+    "vitest": "1.0.0",
+    "@testing-library/react": "14.0.0",
+    "@testing-library/jest-dom": "6.0.0"
+  },
+  "vitest": {
+    "globals": true,
+    "test": {
+      "environment": "jsdom"
+    }
   },
   "peerDependencies": {
     "react": "18.3.1",

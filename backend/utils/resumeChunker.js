@@ -42,6 +42,15 @@ function chunkResume(structuredResume) {
 
   }
 
+  if (structuredResume.projects) {
+    structuredResume.projects.forEach(project => {
+      chunks.push({
+        type: "project",
+        text: `${project.name || project.project || "Project"}: ${project.description || ""}`.trim()
+      });
+    });
+  }
+
   return chunks;
 
 }

@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 const UserSchema = new mongoose.Schema({
     id: { type: String, required: true, unique: true }, // Replicates standard UID
     email: { type: String, required: true, unique: true },
+    username: { type: String, unique: true, sparse: true, trim: true, lowercase: true },
     password: { type: String }, // Hashed password
     userType: { type: String, enum: ['candidate', 'recruiter'], required: true },
     fullName: { type: String, required: true },
@@ -10,6 +11,13 @@ const UserSchema = new mongoose.Schema({
     companyName: { type: String },
     companyDescription: { type: String },
     avatarUrl: { type: String },
+    // Google OAuth tokens (if user connects via Google OAuth)
+    google: {
+        accessToken: String,
+        refreshToken: String,
+        scope: String,
+        tokenExpiry: Date
+    },
     title: { type: String },
     location: { type: String },
     resumeUrl: { type: String },
@@ -27,6 +35,12 @@ const UserSchema = new mongoose.Schema({
         institution: String,
         year: String
     }],
+    projects: [{
+        name: String,
+        description: String
+    }],
+    extraCurricular: [{ type: String }],
+    technicalSkills: [{ type: String }],
     githubUrl: { type: String },
     linkedinUrl: { type: String },
     portfolioUrl: { type: String },

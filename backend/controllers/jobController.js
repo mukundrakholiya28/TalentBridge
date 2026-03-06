@@ -1,4 +1,5 @@
 const Job = require("../models/Job");
+const User = require("../models/User");
 const { v4: uuidv4 } = require("uuid");
 const { createEmbedding } = require("../utils/embedding");
 
@@ -19,9 +20,16 @@ const createJob = async (req, res) => {
             console.warn("Embedding generation skipped:", embError.message);
         }
 
+        // Try to resolve recruiter user to store ObjectId reference
+        let recruiterUser = null;
+        try {
+            recruiterUser = await User.findOne({ id: recruiterId });
+        } catch (e) { recruiterUser = null; }
+
         const newJob = new Job({
             id: uuidv4(),
             recruiterId,
+            recruiter: recruiterUser ? recruiterUser._id : undefined,
             title,
             company,
             location,

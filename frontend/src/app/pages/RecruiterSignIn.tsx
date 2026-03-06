@@ -1,8 +1,11 @@
 import { useState } from "react";
+import { useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { Briefcase, Mail, Lock, Eye, EyeOff } from "lucide-react";
+import { Mail, Lock, Eye, EyeOff } from "lucide-react";
 import { apiClient } from "../../utils/apiClient";
+import { clearAuthSession, getAuthToken, getUserRole, setAuthSession } from "../../utils/authStorage";
 import { toast } from "sonner";
+import { GoogleSignInButton } from "../components/GoogleSignInButton";
 import logo from "../../assets/0ed04b30b5fcacaeb0065c439ebb8dc86719fd9d.png";
 
 
@@ -11,9 +14,18 @@ export function RecruiterSignIn() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
-    email: "",
+    identifier: "",
     password: ""
   });
+  const [rememberMe, setRememberMe] = useState(true);
+
+  useEffect(() => {
+    const token = getAuthToken();
+    const role = getUserRole();
+    if (token && role === "recruiter") {
+      navigate("/recruiter/dashboard", { replace: true });
+    }
+  }, [navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -21,42 +33,35 @@ export function RecruiterSignIn() {
 
     try {
       const result = await apiClient.post('/auth/login', {
-        email: formData.email,
+        identifier: formData.identifier,
         password: formData.password,
+        userType: 'recruiter'
       });
 
       if (result.token) {
         toast.success("Signed in successfully!");
 
-        // Save real JWT token
-        localStorage.setItem("token", result.token);
-        localStorage.setItem("userRole", result.user.userType);
-        localStorage.setItem("user", JSON.stringify(result.user));
+        setAuthSession(result.token, result.user, rememberMe);
 
         // Check user role and navigate accordingly
         if (result.user.userType === 'recruiter') {
           navigate("/recruiter/dashboard");
         } else {
           toast.error("Please use the candidate sign in page");
-          localStorage.removeItem("token");
-          localStorage.removeItem("userRole");
-          localStorage.removeItem("user");
+          clearAuthSession();
         }
       } else {
         toast.error(result.error || "Invalid email or password");
       }
     } catch (error: any) {
       console.error("Sign in error:", error);
-      toast.error(error.message || "Invalid email or password");
+      toast.error(error.message || "Invalid username, email, or password");
     } finally {
       setLoading(false);
     }
   };
 
-  const handleSocialLogin = (provider: string) => {
-    console.log(`Logging in with ${provider}`);
-    navigate("/recruiter/dashboard");
-  };
+
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex flex-col">
@@ -94,18 +99,18 @@ export function RecruiterSignIn() {
 
             <form onSubmit={handleSubmit} className="space-y-6">
               <div>
-                <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Company Email / Phone Number / Username
+                <label htmlFor="identifier" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Username or Email
                 </label>
                 <div className="relative">
                   <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                   <input
-                    id="email"
+                    id="identifier"
                     type="text"
-                    value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    value={formData.identifier}
+                    onChange={(e) => setFormData({ ...formData, identifier: e.target.value })}
                     className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                    placeholder="Enter company email, phone, or username"
+                    placeholder="Enter your username or email"
                     required
                   />
                 </div>
@@ -141,6 +146,8 @@ export function RecruiterSignIn() {
                   <input
                     id="remember"
                     type="checkbox"
+                    checked={rememberMe}
+                    onChange={(e) => setRememberMe(e.target.checked)}
                     className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                   />
                   <label htmlFor="remember" className="ml-2 text-sm text-gray-600 dark:text-gray-400">
@@ -162,41 +169,7 @@ export function RecruiterSignIn() {
             </form>
 
             <div className="mt-6">
-              <div className="relative">
-                <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-gray-300 dark:border-gray-600"></div>
-                </div>
-                <div className="relative flex justify-center text-sm">
-                  <span className="px-2 bg-white dark:bg-gray-800 text-gray-500">Or continue with</span>
-                </div>
-              </div>
-
-              <div className="mt-6 grid grid-cols-2 gap-3">
-                <button
-                  onClick={() => handleSocialLogin("Google")}
-                  className="flex items-center justify-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700"
-                >
-                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Google</span>
-                </button>
-                <button
-                  onClick={() => handleSocialLogin("LinkedIn")}
-                  className="flex items-center justify-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700"
-                >
-                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">LinkedIn</span>
-                </button>
-                <button
-                  onClick={() => handleSocialLogin("Microsoft")}
-                  className="flex items-center justify-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700"
-                >
-                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Microsoft</span>
-                </button>
-                <button
-                  onClick={() => handleSocialLogin("Apple")}
-                  className="flex items-center justify-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700"
-                >
-                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Apple</span>
-                </button>
-              </div>
+              <GoogleSignInButton userType="recruiter" action="signin" />
             </div>
 
             <div className="mt-6 text-center">

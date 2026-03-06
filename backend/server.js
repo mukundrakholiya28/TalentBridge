@@ -18,6 +18,7 @@ const ragSearchRoutes = require("./routes/ragSearch");
 const atsRoutes = require("./routes/ats");
 const resumeRoutes = require("./routes/resume");
 const offerRoutes = require("./routes/offers");
+const candidateRoutes = require("./routes/candidate");
 
 dotenv.config();
 
@@ -72,6 +73,7 @@ app.use("/api/rag", ragSearchRoutes);
 app.use("/api/ats", atsRoutes);
 app.use("/api/resume", resumeRoutes);
 app.use("/api/offers", offerRoutes);
+app.use("/api/candidate", candidateRoutes);
 
 /**
  * Resume Upload Route

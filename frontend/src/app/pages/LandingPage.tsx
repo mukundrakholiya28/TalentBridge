@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { ImageWithFallback } from "../components/figma/ImageWithFallback";
 import logo from "../../assets/0ed04b30b5fcacaeb0065c439ebb8dc86719fd9d.png";
+import { getAuthToken, getUserRole } from "../../utils/authStorage";
 
 export function LandingPage() {
   const navigate = useNavigate();
@@ -58,6 +59,19 @@ export function LandingPage() {
 
     return () => clearInterval(interval);
   }, [heroSlides.length]);
+
+  useEffect(() => {
+    const token = getAuthToken();
+    const role = getUserRole();
+    if (!token) return;
+    if (role === "recruiter") {
+      navigate("/recruiter/dashboard", { replace: true });
+      return;
+    }
+    if (role === "candidate") {
+      navigate("/candidate/dashboard", { replace: true });
+    }
+  }, [navigate]);
 
   const perks = [
     {

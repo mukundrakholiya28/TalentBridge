@@ -13,13 +13,26 @@ const EducationSchema = new mongoose.Schema({
     year: String
 });
 
+const ProjectSchema = new mongoose.Schema({
+    name: String,
+    description: String
+});
+
 const CandidateSchema = new mongoose.Schema({
+    user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, unique: true, index: true },
     name: { type: String, required: true },
     email: { type: String, required: true },
     phone: String,
+    githubUrl: String,
+    linkedinUrl: String,
+    title: String,
+    location: String,
+    technicalSkills: [String],
     skills: [String],
     experience: [ExperienceSchema],
     education: [EducationSchema],
+    projects: [ProjectSchema],
+    extraCurricular: [String],
     summary: String,
     resumeText: { type: String, default: '' },
     resumePath: String,

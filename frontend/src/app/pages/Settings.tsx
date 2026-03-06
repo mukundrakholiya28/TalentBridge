@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { DashboardHeader } from "../components/DashboardHeader";
+import { RecruiterHeader } from "../components/RecruiterHeader";
+import { getUserRole } from "../../utils/authStorage";
 import { Bell, Lock, Globe, Mail, Moon, Sun } from "lucide-react";
 import { useTheme } from "next-themes";
 
@@ -22,9 +24,11 @@ export function Settings() {
     });
   };
 
+  const userRole = typeof window !== 'undefined' ? getUserRole() : null;
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      <DashboardHeader />
+      {userRole === 'recruiter' ? <RecruiterHeader /> : <DashboardHeader />}
 
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-8">
