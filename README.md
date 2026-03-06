@@ -1,189 +1,176 @@
-# TalentBridge
+# 🚀 TalentBridge: AI-Powered Recruitment Ecosystem
 
-TalentBridge is an AI-powered recruitment platform that connects
-recruiters and candidates through intelligent resume analysis, semantic
-search, and automated evaluation.
+**TalentBridge** is an advanced recruitment platform that leverages **Semantic Search** and **LLM-driven evaluation** to bridge the gap between top-tier talent and recruiters. By utilizing high-dimensional vector embeddings, it moves beyond traditional keyword matching to identify the best candidates through deep contextual understanding.
 
-The platform simplifies the hiring process by enabling recruiters to
-post jobs, analyze resumes using AI, and identify the best candidates
-through semantic matching.
+---
 
-------------------------------------------------------------------------
+## 📖 Table of Contents
+- [✨ Key Features](#-key-features)
+- [🛠️ Tech Stack](#-tech-stack)
+- [📐 System Architecture](#-system-architecture)
+- [⚙️ Installation & Setup](#-installation--setup)
+- [🔄 AI Workflow](#-ai-workflow)
+- [📁 Project Structure](#-project-structure)
+- [🛡️ Security Features](#-security-features)
+- [🔮 Future Roadmap](#-future-roadmap)
 
-# Key Features
+---
 
-## Candidate Features
+## ✨ Key Features
 
--   Candidate registration and login
--   Profile creation
--   Resume upload
--   Apply for jobs
--   Track application status
+### 👤 For Candidates
+* **Smart Profiles:** Secure registration and profile management.
+* **Resume Intelligence:** Instant PDF parsing and data extraction via AI.
+* **Application Tracking:** Real-time status updates and historical tracking.
 
-## Recruiter Features
+### 💼 For Recruiters
+* **Job Management:** Simplified interface for posting and managing job lifecycles.
+* **AI-Based Evaluation:** Automated candidate scoring using Google Generative AI.
+* **Semantic Search:** Identify candidates based on skill intent rather than exact string matches.
 
--   Post job openings
--   View candidate applications
--   Candidate filtering
--   AI-based resume insights
+---
 
-## AI Capabilities
+## 🛠️ Tech Stack
 
--   Resume parsing from PDF
--   Semantic resume search using embeddings
--   AI-based resume evaluation
--   Candidate-job matching
+| Layer | Technologies |
+| :--- | :--- |
+| **Frontend** | React, Vite, Material UI, Radix UI, Emotion |
+| **Backend** | Node.js, Express.js, JWT, Multer |
+| **Database** | MongoDB, Mongoose ODM |
+| **AI / ML** | Transformers.js, Google Generative AI (Gemini), pdf-parse |
 
-------------------------------------------------------------------------
+---
 
-# Tech Stack
+## 📐 System Architecture
 
-## Frontend
+TalentBridge utilizes a decoupled client-server architecture with a dedicated AI processing layer.
 
--   React
--   Vite
--   Material UI
--   Radix UI Components
--   Emotion Styling
 
-## Backend
 
--   Node.js
--   Express.js
--   JWT Authentication
--   Multer (file uploads)
+```text
+Frontend (React + Vite) 
+       │ 
+       ▼ 
+REST API (Node.js + Express) 
+       │ 
+       ├── Authentication (JWT) 
+       ├── Job Management 
+       ├── Application System 
+       └── Semantic Search 
+               │ 
+               ▼ 
+        MongoDB Database
 
-## Database
+AI Layer (Logic)
+       ├── Resume Parsing (pdf-parse)
+       ├── Embedding Generation (Transformers.js)
+       └── Evaluation (Google GenAI)
 
--   MongoDB
--   Mongoose ODM
+```
 
-## AI / Machine Learning
+---
 
--   Transformers.js (@xenova/transformers)
--   Google Generative AI (@google/genai)
--   Resume parsing with pdf-parse
+## ⚙️ Installation & Setup
 
-------------------------------------------------------------------------
+### 1. Clone the Repository
 
-# System Architecture
+```bash
+git clone [https://github.com/YOUR_USERNAME/TalentBridge.git](https://github.com/YOUR_USERNAME/TalentBridge.git)
+cd TalentBridge
 
-Frontend (React + Vite) │ │ REST API ▼ Backend (Node.js + Express) │ ├──
-Authentication (JWT) ├── Resume Processing ├── Job Management ├──
-Application System ├── Semantic Search │ ▼ MongoDB Database
+```
 
-AI Layer ├── Resume Parsing ├── Embedding Generation └── AI Resume
-Evaluation
+### 2. Configure Environment Variables
 
-------------------------------------------------------------------------
+Create a `.env` file inside the `backend` folder:
 
-# Project Structure
+```env
+PORT=5000
+MONGO_URI=your_mongodb_atlas_connection
+JWT_SECRET=your_secret_key
+GOOGLE_API_KEY=your_google_genai_key
 
-TalentBridge │ ├── backend │ ├── controllers │ ├── middleware │ ├──
-models │ ├── routes │ ├── utils │ └── server.js │ ├── frontend │ ├──
-components │ ├── pages │ ├── services │ ├── assets │ └── main.jsx │ └──
-README.md
+```
 
-------------------------------------------------------------------------
+### 3. Install Backend Dependencies
 
-# Installation Guide
+```bash
+cd backend
+npm install
+npm start
 
-## 1 Clone Repository
+```
 
-git clone https://github.com/YOUR_USERNAME/TalentBridge.git cd
+### 4. Install Frontend Dependencies
+
+```bash
+cd ../frontend
+npm install
+npm run dev
+
+```
+
+---
+
+## 🔄 AI Workflow
+
+The platform treats resume data as high-dimensional vectors to ensure precision matching.
+
+```mermaid
+graph TD
+    A[Resume Upload] --> B[PDF Parsing: pdf-parse]
+    B --> C[Text Extraction]
+    C --> D[Embedding Generation: Transformers.js]
+    D --> E[Semantic Matching: Vector Similarity]
+    E --> F[LLM Evaluation: Google Gemini]
+    F --> G[Ranked Candidate List]
+
+```
+
+---
+
+## 📁 Project Structure
+
+```text
 TalentBridge
+├── backend
+│   ├── controllers/    # API Request Handlers
+│   ├── middleware/     # Auth & File Upload logic
+│   ├── models/         # Mongoose Schemas
+│   ├── routes/         # API Route definitions
+│   ├── utils/          # AI logic & PDF parsing helpers
+│   └── server.js       # Entry point
+├── frontend
+│   ├── components/     # Reusable UI elements
+│   ├── pages/          # View components
+│   ├── services/       # Frontend API calls
+│   ├── assets/         # Static assets
+│   └── main.jsx        # React DOM entry
+└── README.md
 
-------------------------------------------------------------------------
+```
 
-## 2 Install Backend Dependencies
+---
 
-cd backend npm install
+## 🛡️ Security Features
 
-------------------------------------------------------------------------
+* **Bcrypt:** Password hashing for data protection.
+* **JWT:** Stateless authentication for secure API access.
+* **Multer Filtering:** Validation of file types for secure resume uploads.
+* **Env Protection:** Strict separation of API keys from the source code.
 
-## 3 Install Frontend Dependencies
+---
 
-cd ../frontend npm install
+## 🔮 Future Roadmap
 
-------------------------------------------------------------------------
+* [ ] **AI Interview Assistant:** Automated initial technical screenings.
+* [ ] **Skill Graph:** Visualizing candidate skill density and growth.
+* [ ] **Recruiter Analytics:** Data-driven dashboard for hiring metrics.
 
-# Environment Variables
+---
 
-Create a `.env` file inside the backend folder.
+## 📄 License
 
-PORT=5000 MONGO_URI=your_mongodb_atlas_connection
-JWT_SECRET=your_secret_key GOOGLE_API_KEY=your_google_genai_key
+Distributed under the **MIT License**.
 
-------------------------------------------------------------------------
-
-# Running the Project
-
-## Start Backend
-
-cd backend npm start
-
-Server runs on: http://localhost:5000
-
-------------------------------------------------------------------------
-
-## Start Frontend
-
-cd frontend npm run dev
-
-Frontend runs on: http://localhost:5173
-
-------------------------------------------------------------------------
-
-# API Modules
-
-Auth --- User authentication and authorization\
-Jobs --- Job posting and management\
-Applications --- Candidate job applications\
-Resume --- Resume upload and parsing\
-AI Evaluation --- AI-based resume analysis\
-Search --- Semantic candidate search
-
-------------------------------------------------------------------------
-
-# AI Workflow
-
-Resume Upload │ ▼ PDF Parsing (pdf-parse) │ ▼ Text Extraction │ ▼
-Embedding Generation (Transformers) │ ▼ Semantic Matching │ ▼ Candidate
-Ranking
-
-------------------------------------------------------------------------
-
-# Future Improvements
-
--   AI interview assistant
--   Interview scheduling
--   Video interview integration
--   Candidate skill graph
--   Recruiter analytics dashboard
--   Resume scoring system
-
-------------------------------------------------------------------------
-
-# Security Features
-
--   JWT Authentication
--   Password hashing using bcrypt
--   Secure file uploads
--   Environment variable protection
-
-------------------------------------------------------------------------
-
-# Contributing
-
-1.  Fork the repository
-2.  Create a feature branch
-3.  Commit your changes
-4.  Submit a pull request
-
-------------------------------------------------------------------------
-
-# License
-
-MIT License
-
-Copyright (c) 2026 Mukund Rakholiya
+*Copyright (c) 2026 Mukund Rakholiya*
