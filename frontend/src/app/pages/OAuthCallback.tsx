@@ -3,6 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { clearAuthSession, setAuthSession } from "../../utils/authStorage";
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
+
 export function OAuthCallback() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
@@ -39,7 +41,7 @@ export function OAuthCallback() {
           import.meta.env.VITE_GOOGLE_OAUTH_REDIRECT ||
           (window.location.origin + '/auth/oauth-callback');
 
-        const response = await fetch('http://localhost:5000/api/auth/oauth', {
+        const response = await fetch(`${API_BASE_URL}/auth/oauth`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'

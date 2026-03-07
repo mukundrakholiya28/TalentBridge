@@ -69,7 +69,7 @@ export const CandidateCompleteProfile: React.FC = () => {
 
       const fd = new FormData();
       fd.append('resume', file);
-      const resp = await fetch('http://localhost:5000/api/upload-resume', {
+      const resp = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api'}/upload-resume`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` },
         body: fd

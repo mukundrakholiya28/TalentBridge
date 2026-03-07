@@ -111,7 +111,7 @@ export function OfferLetters() {
     try {
       const token = getAuthToken();
       if (!token) throw new Error("No auth token");
-      const response = await fetch(`http://localhost:5000/api/offers/${offerId}/pdf`, {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api'}/offers/${offerId}/pdf`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (!response.ok) throw new Error(`Failed to download (${response.status})`);
