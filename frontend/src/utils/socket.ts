@@ -1,7 +1,7 @@
 import { io, Socket } from 'socket.io-client';
 import { getAuthToken } from './authStorage';
 
-const SOCKET_URL = 'http://localhost:5000';
+const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://localhost:5000';
 
 let socket: Socket | null = null;
 
