@@ -41,6 +41,9 @@ export function OAuthCallback() {
           import.meta.env.VITE_GOOGLE_OAUTH_REDIRECT ||
           (window.location.origin + '/auth/oauth-callback');
 
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 60000);
+
         const response = await fetch(`${API_BASE_URL}/auth/oauth`, {
           method: 'POST',
           headers: {
@@ -51,8 +54,11 @@ export function OAuthCallback() {
             redirectUri,
             userType: state.userType,
             intent: state.intent
-          })
+          }),
+          signal: controller.signal
         });
+
+        clearTimeout(timeoutId);
 
         let resp: any = null;
         try {
@@ -105,7 +111,9 @@ export function OAuthCallback() {
         }
       } catch (err) {
         console.error('OAuth callback error', err);
-        const message = err instanceof Error ? err.message : 'OAuth callback failed';
+        const message = err instanceof Error
+          ? (err.name === 'AbortError' ? 'Request timed out. The server may be starting up — please try again.' : err.message)
+          : 'OAuth callback failed';
         setErrorMessage(message);
         toast.error(message);
       } finally {
