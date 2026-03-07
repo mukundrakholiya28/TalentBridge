@@ -11,7 +11,7 @@ import {
   ChevronDown,
   Home
 } from "lucide-react";
-import logo from "../../assets/0ed04b30b5fcacaeb0065c439ebb8dc86719fd9d.png";
+import logo from "../../assets/logo.png";
 import { clearAuthSession, setUserRoleForActiveSession, getStoredUser, updateStoredUser } from "../../utils/authStorage";
 import { apiClient } from "../../utils/apiClient";
 
@@ -64,9 +64,9 @@ export function RecruiterHeader() {
             className="flex items-center gap-2 cursor-pointer"
             onClick={() => navigate("/recruiter/dashboard")}
           >
-            <img src={logo} alt="CONSOLE" className="w-10 h-10" />
+            <img src={logo} alt="CONSOLE | TalentBridge" className="w-10 h-10" />
             <span className="text-xl font-bold text-gray-900 dark:text-white">
-              CONSOLE<span className="hidden sm:inline"> - Recruiter</span>
+              CONSOLE | TalentBridge<span className="hidden sm:inline"> - Recruiter</span>
             </span>
           </div>
           <div className="flex items-center gap-4">

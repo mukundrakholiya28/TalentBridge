@@ -6,7 +6,7 @@ import { apiClient } from "../../utils/apiClient";
 import { clearAuthSession, getAuthToken, getUserRole, setAuthSession } from "../../utils/authStorage";
 import { toast } from "sonner";
 import { GoogleSignInButton } from "../components/GoogleSignInButton";
-import logo from "../../assets/0ed04b30b5fcacaeb0065c439ebb8dc86719fd9d.png";
+import logo from "../../assets/logo.png";
 
 
 export function RecruiterSignIn() {
@@ -69,8 +69,8 @@ export function RecruiterSignIn() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <Link to="/" className="flex items-center gap-2">
-              <img src={logo} alt="CONSOLE" className="w-10 h-10" />
-              <span className="text-xl font-bold text-gray-900 dark:text-white">CONSOLE</span>
+              <img src={logo} alt="CONSOLE | TalentBridge" className="w-10 h-10" />
+              <span className="text-xl font-bold text-gray-900 dark:text-white">CONSOLE | TalentBridge</span>
             </Link>
             <div className="flex items-center gap-4">
               <span className="text-sm text-gray-600 dark:text-gray-400">New to CONSOLE?</span>

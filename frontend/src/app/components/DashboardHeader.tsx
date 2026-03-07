@@ -11,7 +11,7 @@ import {
   Home,
 } from "lucide-react";
 import { toast } from "sonner";
-import logo from "../../assets/0ed04b30b5fcacaeb0065c439ebb8dc86719fd9d.png";
+import logo from "../../assets/logo.png";
 import { clearAuthSession, setUserRoleForActiveSession, getStoredUser, updateStoredUser } from "../../utils/authStorage";
 import { apiClient } from "../../utils/apiClient";
 
@@ -57,8 +57,8 @@ export function DashboardHeader() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           <div className="flex items-center gap-2 cursor-pointer" onClick={() => navigate("/candidate/dashboard")}>
-            <img src={logo} alt="CONSOLE" className="w-10 h-10" />
-            <span className="text-xl font-bold text-gray-900 dark:text-white">CONSOLE</span>
+            <img src={logo} alt="CONSOLE | TalentBridge" className="w-10 h-10" />
+            <span className="text-xl font-bold text-gray-900 dark:text-white">CONSOLE | TalentBridge</span>
           </div>
 
           <div className="flex items-center gap-4">

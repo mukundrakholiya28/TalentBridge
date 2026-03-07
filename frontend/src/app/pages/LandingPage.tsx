@@ -15,7 +15,7 @@ import {
   X
 } from "lucide-react";
 import { ImageWithFallback } from "../components/figma/ImageWithFallback";
-import logo from "../../assets/0ed04b30b5fcacaeb0065c439ebb8dc86719fd9d.png";
+import logo from "../../assets/logo.png";
 import { getAuthToken, getUserRole } from "../../utils/authStorage";
 
 export function LandingPage() {
@@ -25,7 +25,7 @@ export function LandingPage() {
 
   const heroSlides = [
     {
-      title: "Find Your Dream Job with CONSOLE",
+      title: "Find Your Dream Job with CONSOLE | TalentBridge",
       description: "The recruitment platform that puts top-tier talent first. Say goodbye to scattered data and hello to seamless hiring.",
       primaryButton: {
         text: "Get Started",
@@ -39,7 +39,7 @@ export function LandingPage() {
       imageAlt: "Team collaboration"
     },
     {
-      title: "Hire Top Talent Faster with CONSOLE",
+      title: "Hire Top Talent Faster with CONSOLE | TalentBridge",
       description: "Streamline your recruitment process with powerful tools designed for modern hiring teams. Connect with qualified candidates instantly.",
       primaryButton: {
         text: "Start Hiring",
@@ -147,8 +147,8 @@ export function LandingPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center gap-2">
-              <img src={logo} alt="CONSOLE" className="w-10 h-10" />
-              <span className="text-xl font-bold text-gray-900 dark:text-white">CONSOLE</span>
+              <img src={logo} alt="CONSOLE | TalentBridge" className="w-10 h-10" />
+              <span className="text-xl font-bold text-gray-900 dark:text-white">CONSOLE | TalentBridge</span>
             </div>
 
             <nav className="hidden md:flex items-center gap-6">
@@ -293,7 +293,7 @@ export function LandingPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-10 md:mb-16">
             <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-4">
-              Why Choose CONSOLE?
+              Why Choose CONSOLE | TalentBridge?
             </h2>
             <p className="text-base sm:text-lg md:text-xl text-gray-600 dark:text-gray-300">
               Experience the future of recruitment with our innovative platform
@@ -401,8 +401,8 @@ export function LandingPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-8 md:gap-12 mb-12">
             <div>
               <div className="flex items-center gap-2 mb-4">
-                <img src={logo} alt="CONSOLE" className="w-6 h-6" />
-                <span className="text-lg font-semibold">CONSOLE</span>
+                <img src={logo} alt="CONSOLE | TalentBridge" className="w-6 h-6" />
+                <span className="text-lg font-semibold">CONSOLE | TalentBridge</span>
               </div>
               <p className="text-gray-400">
                 Revolutionizing recruitment with innovative technology and seamless experiences.
@@ -454,7 +454,7 @@ export function LandingPage() {
           </div>
 
           <div className="border-t border-gray-800 pt-8 text-center text-gray-400">
-            <p>&copy; 2026 CONSOLE. All rights reserved.</p>
+            <p>&copy; 2026 CONSOLE | TalentBridge. All rights reserved.</p>
           </div>
         </div>
       </footer>
