@@ -70,10 +70,15 @@ const upload = multer({
 const MONGODB_URI =
     process.env.MONGODB_URI || "mongodb://127.0.0.1:27017/talentbridge";
 
+console.log("🔗 Connecting to MongoDB...", MONGODB_URI.replace(/\/\/([^:]+):([^@]+)@/, '//$1:***@'));
+
 mongoose
-    .connect(MONGODB_URI)
+    .connect(MONGODB_URI, {
+        serverSelectionTimeoutMS: 30000,
+        socketTimeoutMS: 45000,
+    })
     .then(() => console.log("✅ Connected to MongoDB Database"))
-    .catch((err) => console.error("❌ MongoDB Connection Error:", err));
+    .catch((err) => console.error("❌ MongoDB Connection Error:", err.message));
 
 /**
  * API Routes
