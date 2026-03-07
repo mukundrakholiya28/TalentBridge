@@ -68,7 +68,7 @@ export function PostJob() {
           >
             ← Back to Dashboard
           </button>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-2">
             Post a New Job
           </h1>
           <p className="text-gray-600 dark:text-gray-400">
@@ -78,7 +78,7 @@ export function PostJob() {
 
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Basic Information */}
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 border border-gray-200 dark:border-gray-700">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 border border-gray-200 dark:border-gray-800">
             <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
               Basic Information
             </h2>
@@ -183,7 +183,7 @@ export function PostJob() {
           </div>
 
           {/* Job Details */}
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 border border-gray-200 dark:border-gray-700">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 border border-gray-200 dark:border-gray-800">
             <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
               Job Details
             </h2>
@@ -268,14 +268,14 @@ export function PostJob() {
             <button
               type="button"
               onClick={() => navigate("/recruiter/dashboard")}
-              className="flex-1 px-6 py-3 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+              className="flex-1 px-6 py-3 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={loading}
-              className="flex-1 px-6 py-3 bg-gradient-to-r from-red-500 via-orange-500 to-yellow-500 text-white rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50"
+              className="flex-1 px-6 py-3 bg-blue-600 text-white rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50"
             >
               {loading ? "Posting..." : "Post Job"}
             </button>

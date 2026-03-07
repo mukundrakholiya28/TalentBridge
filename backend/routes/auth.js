@@ -6,7 +6,8 @@ const {
   login,
   googleAuth,
   getSession,
-  oauthExchange
+  oauthExchange,
+  refreshGoogleToken
 } = require("../controllers/authController");
 
 const authMiddleware = require("../middleware/authMiddleware");
@@ -20,6 +21,7 @@ router.post("/google", googleAuth);
 router.post('/oauth', oauthExchange);
 
 router.get("/session", authMiddleware, getSession);
+router.post("/refresh-google-token", authMiddleware, refreshGoogleToken);
 
 
 module.exports = router;

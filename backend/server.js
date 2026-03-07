@@ -1,5 +1,7 @@
 require("dotenv").config();
 const express = require("express");
+const http = require("http");
+const { Server } = require("socket.io");
 const mongoose = require("mongoose");
 const cors = require("cors");
 const multer = require("multer");
@@ -18,18 +20,34 @@ const ragSearchRoutes = require("./routes/ragSearch");
 const atsRoutes = require("./routes/ats");
 const resumeRoutes = require("./routes/resume");
 const offerRoutes = require("./routes/offers");
+const oaRoutes = require("./routes/oa");
 const candidateRoutes = require("./routes/candidate");
 
 dotenv.config();
 
 const app = express();
+const server = http.createServer(app);
+const io = new Server(server, {
+    cors: { origin: "*" }
+});
 const port = process.env.PORT || 5000;
+
+// Make io accessible to controllers via req.app
+app.set('io', io);
+
+// Socket.IO connection handling
+io.on('connection', (socket) => {
+    socket.on('join', (userId) => {
+        if (userId) socket.join(userId);
+    });
+    socket.on('disconnect', () => {});
+});
 
 /**
  * Middleware
  */
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '5mb' }));
 
 /**
  * Multer Configuration (PDF Upload)
@@ -73,6 +91,7 @@ app.use("/api/rag", ragSearchRoutes);
 app.use("/api/ats", atsRoutes);
 app.use("/api/resume", resumeRoutes);
 app.use("/api/offers", offerRoutes);
+app.use("/api/oa", oaRoutes);
 app.use("/api/candidate", candidateRoutes);
 
 /**
@@ -112,6 +131,6 @@ app.get("/", (req, res) => {
 /**
  * Start Server
  */
-app.listen(port, () => {
+server.listen(port, () => {
     console.log(`🚀 TalentBridge Backend running at http://localhost:${port}`);
 });

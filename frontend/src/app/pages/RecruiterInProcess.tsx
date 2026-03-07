@@ -65,7 +65,8 @@ export function RecruiterInProcess() {
               const inProcessApps = appsData
                 .filter((app: any) => {
                   const s = (app.status || "").toLowerCase();
-                  return s === "in-process" || s === "in_process" || s === "in process";
+                  const terminal = ["pending", "rejected", "offer accepted", "offer declined"];
+                  return !terminal.includes(s.replace(/[\s_-]+/g, " ").trim());
                 })
                 .map((app: any) => ({
                   ...app,
@@ -101,7 +102,7 @@ export function RecruiterInProcess() {
     try {
       const interviewDate = new Date(`${interviewForm.date}T${interviewForm.time}`);
       const result = await apiClient.put(`/applications/${selectedApplication}/status`, {
-        status: "in-process",
+        status: "Interview Scheduled",
         interviewDate: interviewDate.toISOString(),
         interviewType: interviewForm.type,
       });
@@ -165,7 +166,7 @@ export function RecruiterInProcess() {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-2">
             In-Process Candidates
           </h1>
           <p className="text-gray-600 dark:text-gray-400">
@@ -182,11 +183,11 @@ export function RecruiterInProcess() {
             {applications.map((app) => (
               <div
                 key={app.id}
-                className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 border border-gray-200 dark:border-gray-700"
+                className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 border border-gray-200 dark:border-gray-800"
               >
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex items-start gap-4">
-                    <div className="w-12 h-12 rounded-full bg-gradient-to-r from-red-500 via-orange-500 to-yellow-500 flex items-center justify-center text-white font-semibold text-lg">
+                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-4">
+                  <div className="flex items-start gap-3 sm:gap-4 min-w-0">
+                    <div className="w-12 h-12 rounded-full bg-blue-600 flex items-center justify-center text-white font-semibold text-lg">
                       {app.candidate.fullName.charAt(0)}
                     </div>
                     <div>
@@ -204,9 +205,26 @@ export function RecruiterInProcess() {
                       </div>
                     </div>
                   </div>
-                  <span className="px-3 py-1 bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 rounded-full text-sm font-medium">
-                    In Process
-                  </span>
+                  {(() => {
+                    const s = (app.status || "").toLowerCase().replace(/[\s_-]+/g, " ").trim();
+                    const label =
+                      s === "interview scheduled" ? "Interview Scheduled" :
+                      s === "assessment completed" ? "Assessment Completed" :
+                      s === "offer extended" ? "Offer Extended" :
+                      s === "negotiating" ? "Negotiating" :
+                      "In Process";
+                    const colors =
+                      s === "interview scheduled" ? "bg-purple-100 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300" :
+                      s === "assessment completed" ? "bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-300" :
+                      s === "offer extended" ? "bg-amber-100 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300" :
+                      s === "negotiating" ? "bg-orange-100 dark:bg-orange-900/20 text-orange-700 dark:text-orange-300" :
+                      "bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300";
+                    return (
+                      <span className={`px-3 py-1 rounded-full text-sm font-medium ${colors}`}>
+                        {label}
+                      </span>
+                    );
+                  })()}
                 </div>
 
                 {app.interviewDate && (
@@ -277,7 +295,7 @@ export function RecruiterInProcess() {
                   </div>
                 )}
 
-                <div className="flex gap-2 flex-wrap">
+                <div className="flex gap-2 flex-wrap text-sm sm:text-base">
                   <button
                     onClick={() => {
                       setSelectedApplication(app.id);
@@ -299,6 +317,25 @@ export function RecruiterInProcess() {
                     Send Assessment
                   </button>
                   <button
+                    onClick={() => navigate(`/recruiter/assessment/${app.id}/create`)}
+                    className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+                  >
+                    <FileText className="w-4 h-4" />
+                    Create Integrated OA
+                  </button>
+                  {app.assessmentLink?.startsWith("/candidate/assessment/") && (
+                    <button
+                      onClick={() => {
+                        const assessmentId = app.assessmentLink?.split("/candidate/assessment/")[1];
+                        if (assessmentId) navigate(`/recruiter/assessment/${assessmentId}/results`);
+                      }}
+                      className="flex items-center gap-2 px-4 py-2 border border-indigo-300 dark:border-indigo-700 text-indigo-700 dark:text-indigo-300 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-colors"
+                    >
+                      <CheckCircle className="w-4 h-4" />
+                      View OA Scoreboard
+                    </button>
+                  )}
+                  <button
                     onClick={() => navigate(`/recruiter/send-offer/${app.id}`)}
                     className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
                   >
@@ -307,7 +344,7 @@ export function RecruiterInProcess() {
                   </button>
                   <button
                     onClick={() => navigate(`/recruiter/messages?candidateId=${app.candidateId}`)}
-                    className="flex items-center gap-2 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                    className="flex items-center gap-2 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
                   >
                     <Mail className="w-4 h-4" />
                     Message Candidate
@@ -317,7 +354,7 @@ export function RecruiterInProcess() {
             ))}
           </div>
         ) : (
-          <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+          <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-800">
             <User className="w-16 h-16 text-gray-400 mx-auto mb-4" />
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
               No candidates in process
@@ -388,7 +425,7 @@ export function RecruiterInProcess() {
                     setShowScheduleModal(false);
                     setInterviewForm({ date: "", time: "", type: "video" });
                   }}
-                  className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700"
+                  className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800"
                 >
                   Cancel
                 </button>
@@ -459,7 +496,7 @@ export function RecruiterInProcess() {
                     setShowAssessmentModal(false);
                     setAssessmentForm({ title: "", dueDate: "", link: "" });
                   }}
-                  className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700"
+                  className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800"
                 >
                   Cancel
                 </button>

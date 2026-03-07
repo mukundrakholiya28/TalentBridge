@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { DashboardHeader } from "../components/DashboardHeader";
 import {
   Building, Calendar, Video, FileText, CheckCircle,
-  Clock, MessageSquare, ExternalLink, ClipboardList
+  Clock, MessageSquare, ExternalLink, ClipboardList, Handshake, Mail
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { apiClient } from "../../utils/apiClient";
@@ -39,8 +39,10 @@ export function InProcess() {
       const appsData = await apiClient.get('/applications/my-applications');
       if (Array.isArray(appsData)) {
         const inProcess = appsData.filter((app: any) => {
-          const s = (app.status || '').toLowerCase();
-          return s === 'in-process' || s === 'in_process' || s === 'in-review' || s === 'in review';
+          const s = (app.status || '').toLowerCase().replace(/[\s_-]+/g, ' ').trim();
+          // Show everything except terminal states and initial pending
+          const terminalStatuses = ['pending', 'rejected', 'offer accepted', 'offer declined'];
+          return !terminalStatuses.includes(s);
         });
         setApplications(inProcess);
       }
@@ -57,7 +59,7 @@ export function InProcess() {
 
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-2">
             In Process
           </h1>
           <p className="text-gray-600 dark:text-gray-400">
@@ -74,7 +76,7 @@ export function InProcess() {
             {applications.map((app) => (
               <div
                 key={app.id}
-                className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden"
+                className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-800 overflow-hidden"
               >
                 {/* Header */}
                 <div className="p-6">
@@ -97,45 +99,75 @@ export function InProcess() {
                         </div>
                       </div>
                     </div>
-                    <span className="px-3 py-1 bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 rounded-full text-xs font-semibold border border-blue-300 dark:border-blue-700">
-                      In Process
-                    </span>
+                    {(() => {
+                      const s = (app.status || '').toLowerCase().replace(/[\s_-]+/g, ' ').trim();
+                      const label =
+                        s === 'in process' || s === 'in review' ? 'In Review' :
+                        s === 'assessment completed' ? 'Assessment Completed' :
+                        s === 'interview scheduled' ? 'Interview Scheduled' :
+                        s === 'offer extended' ? 'Offer Extended' :
+                        s === 'negotiating' ? 'Negotiating' :
+                        app.status || 'In Process';
+                      const colors =
+                        s === 'offer extended' || s === 'negotiating'
+                          ? 'bg-amber-100 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300 border-amber-300 dark:border-amber-700'
+                          : s === 'assessment completed'
+                          ? 'bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-300 border-green-300 dark:border-green-700'
+                          : s === 'interview scheduled'
+                          ? 'bg-purple-100 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 border-purple-300 dark:border-purple-700'
+                          : 'bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 border-blue-300 dark:border-blue-700';
+                      return (
+                        <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${colors}`}>
+                          {label}
+                        </span>
+                      );
+                    })()}
                   </div>
 
                   {/* Progress Steps */}
                   <div className="mb-5">
                     <div className="flex items-center justify-between">
-                      {["Applied", "In Review", "Interview", "Offer"].map((label, i) => {
-                        const completed = i <= 1; // In-process = step 1 completed
-                        const current = i === 2; // Interview is next
-                        return (
-                          <div key={label} className="flex items-center flex-1">
-                            <div className="flex flex-col items-center">
-                              {completed ? (
-                                <CheckCircle className="w-7 h-7 text-green-500" />
-                              ) : current ? (
-                                <div className="w-7 h-7 rounded-full bg-blue-500 flex items-center justify-center">
-                                  <span className="text-white text-xs font-bold">{i + 1}</span>
-                                </div>
-                              ) : (
-                                <div className="w-7 h-7 rounded-full bg-gray-300 dark:bg-gray-600 flex items-center justify-center">
-                                  <span className="text-white text-xs font-bold">{i + 1}</span>
-                                </div>
+                      {(() => {
+                        const steps = ["Applied", "In Review", "Assessment", "Interview", "Offer"];
+                        const s = (app.status || '').toLowerCase().replace(/[\s_-]+/g, ' ').trim();
+                        const stepIndex =
+                          s === 'offer extended' || s === 'negotiating' ? 4 :
+                          s === 'interview scheduled' ? 3 :
+                          s === 'assessment completed' ? 2 :
+                          s === 'in process' || s === 'in review' ? 1 :
+                          0;
+                        return steps.map((label, i) => {
+                          const completed = i <= stepIndex;
+                          const current = i === stepIndex;
+                          return (
+                            <div key={label} className="flex items-center flex-1">
+                              <div className="flex flex-col items-center">
+                                {completed && !current ? (
+                                  <CheckCircle className="w-7 h-7 text-green-500" />
+                                ) : current ? (
+                                  <div className="w-7 h-7 rounded-full bg-blue-500 flex items-center justify-center ring-2 ring-blue-200 dark:ring-blue-800">
+                                    <span className="text-white text-xs font-bold">{i + 1}</span>
+                                  </div>
+                                ) : (
+                                  <div className="w-7 h-7 rounded-full bg-gray-300 dark:bg-gray-600 flex items-center justify-center">
+                                    <span className="text-white text-xs font-bold">{i + 1}</span>
+                                  </div>
+                                )}
+                                <span className={`text-xs mt-1.5 font-medium ${completed && !current ? 'text-green-600 dark:text-green-400' : current ? 'text-blue-600 dark:text-blue-400' : 'text-gray-400 dark:text-gray-500'}`}>
+                                  {label}
+                                </span>
+                              </div>
+                              {i < steps.length - 1 && (
+                                <div className={`flex-1 h-0.5 mx-2 rounded ${completed && !current ? 'bg-green-400' : 'bg-gray-200 dark:bg-gray-600'}`} />
                               )}
-                              <span className={`text-xs mt-1.5 font-medium ${completed ? 'text-green-600 dark:text-green-400' : current ? 'text-blue-600 dark:text-blue-400' : 'text-gray-400 dark:text-gray-500'}`}>
-                                {label}
-                              </span>
                             </div>
-                            {i < 3 && (
-                              <div className={`flex-1 h-0.5 mx-2 rounded ${completed ? 'bg-green-400' : 'bg-gray-200 dark:bg-gray-600'}`} />
-                            )}
-                          </div>
-                        );
-                      })}
+                          );
+                        });
+                      })()}
                     </div>
                   </div>
 
-                  {/* Interview & Assessment Cards */}
+                  {/* Interview & Assessment & Offer Cards */}
                   <div className="grid sm:grid-cols-2 gap-3 mb-4">
                     {/* Interview */}
                     {app.interviewLink ? (
@@ -205,8 +237,37 @@ export function InProcess() {
                     )}
                   </div>
 
+                  {/* Offer Card (when offer has been extended or is being negotiated) */}
+                  {(() => {
+                    const s = (app.status || '').toLowerCase().replace(/[\s_-]+/g, ' ').trim();
+                    if (s === 'offer extended' || s === 'negotiating') {
+                      return (
+                        <div className="mb-4">
+                          <button
+                            onClick={() => navigate('/candidate/offers')}
+                            className="w-full flex items-center gap-3 p-4 bg-amber-50 dark:bg-amber-900/10 rounded-lg border border-amber-200 dark:border-amber-800 hover:border-amber-400 transition-all group"
+                          >
+                            <div className="w-10 h-10 bg-amber-100 dark:bg-amber-900/30 rounded-lg flex items-center justify-center flex-shrink-0 group-hover:bg-amber-200 transition-colors">
+                              {s === 'negotiating' ? <Handshake className="w-5 h-5 text-amber-600" /> : <Mail className="w-5 h-5 text-amber-600" />}
+                            </div>
+                            <div className="flex-1 min-w-0 text-left">
+                              <p className="text-sm font-semibold text-amber-900 dark:text-amber-300 flex items-center gap-1">
+                                {s === 'negotiating' ? 'Offer Under Negotiation' : 'Offer Letter Received'}
+                                <ExternalLink className="w-3 h-3" />
+                              </p>
+                              <p className="text-xs text-amber-600 dark:text-amber-400">
+                                {s === 'negotiating' ? 'Your counter-offer has been sent — awaiting recruiter response' : 'Review and respond to your offer letter'}
+                              </p>
+                            </div>
+                          </button>
+                        </div>
+                      );
+                    }
+                    return null;
+                  })()}
+
                   {/* Action Buttons */}
-                  <div className="flex gap-3 pt-2 border-t border-gray-100 dark:border-gray-700">
+                  <div className="flex gap-3 pt-2 border-t border-gray-100 dark:border-gray-800">
                     <button
                       onClick={() => navigate(`/candidate/messages?to=${app.recruiterId}`)}
                       className="flex items-center gap-2 px-4 py-2 text-sm text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
@@ -216,7 +277,7 @@ export function InProcess() {
                     </button>
                     <button
                       onClick={() => navigate(`/job/${app.jobId}`)}
-                      className="flex items-center gap-2 px-4 py-2 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                      className="flex items-center gap-2 px-4 py-2 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg transition-colors"
                     >
                       <FileText className="w-4 h-4" />
                       View Job

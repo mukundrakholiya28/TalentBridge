@@ -418,6 +418,7 @@ const getSession = async (req, res) => {
     });
 
   }
+};
 
 /** Refresh Google access token using stored refresh token for authenticated user */
 const refreshGoogleToken = async (req, res) => {
@@ -450,14 +451,12 @@ const refreshGoogleToken = async (req, res) => {
 };
 
 
-};
-
-
 
 module.exports = {
   register,
   login,
   googleAuth,
   getSession,
-  oauthExchange
+  oauthExchange,
+  refreshGoogleToken
 };

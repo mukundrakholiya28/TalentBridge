@@ -6,7 +6,8 @@ const {
     sendOffer,
     getRecruiterOffers,
     getCandidateOffers,
-    respondToOffer
+    respondToOffer,
+    downloadOfferPdf
 } = require("../controllers/offerController");
 
 // Recruiter
@@ -16,5 +17,6 @@ router.get("/recruiter", authMiddleware, getRecruiterOffers);
 // Candidate
 router.get("/candidate", authMiddleware, getCandidateOffers);
 router.put("/:id/respond", authMiddleware, respondToOffer);
+router.get("/:id/pdf", authMiddleware, downloadOfferPdf);
 
 module.exports = router;

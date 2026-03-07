@@ -54,3 +54,24 @@ export const setUserRoleForActiveSession = (role: string) => {
   const storage = activeStorage();
   storage.setItem("userRole", role);
 };
+
+export const getStoredUser = (): AuthUser | null => {
+  try {
+    const raw = localStorage.getItem("user") || sessionStorage.getItem("user");
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+};
+
+export const updateStoredUser = (updates: Partial<AuthUser>) => {
+  const storage = activeStorage();
+  const raw = storage.getItem("user");
+  if (!raw) return;
+  try {
+    const user = JSON.parse(raw);
+    Object.assign(user, updates);
+    storage.setItem("user", JSON.stringify(user));
+  } catch { /* ignore */ }
+};

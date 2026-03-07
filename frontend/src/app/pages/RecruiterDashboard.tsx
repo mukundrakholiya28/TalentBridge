@@ -78,11 +78,11 @@ export function RecruiterDashboard() {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Recruiter Profile Card */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 border border-gray-200 dark:border-gray-700 mb-8">
-          <div className="flex items-start justify-between">
-            <div className="flex items-start gap-4">
-              <div className="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center text-white">
-                <User className="w-8 h-8" />
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-4 sm:p-6 border border-gray-200 dark:border-gray-800 mb-8">
+          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+            <div className="flex items-start gap-3 sm:gap-4">
+              <div className="w-12 h-12 sm:w-16 sm:h-16 bg-blue-600 rounded-full flex items-center justify-center text-white flex-shrink-0">
+                <User className="w-6 h-6 sm:w-8 sm:h-8" />
               </div>
               <div>
                 <h3 className="text-xl font-semibold text-gray-900 dark:text-white">{profile?.name || '—'}</h3>
@@ -131,7 +131,7 @@ export function RecruiterDashboard() {
         </div>
         {/* Welcome Section */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-2">
             Welcome Back, Recruiter
           </h1>
           <p className="text-gray-600 dark:text-gray-400">
@@ -143,7 +143,7 @@ export function RecruiterDashboard() {
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <div
             onClick={() => navigate("/recruiter/jobs")}
-            className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 border border-gray-200 dark:border-gray-700 cursor-pointer hover:shadow-md transition-shadow"
+            className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 border border-gray-200 dark:border-gray-800 cursor-pointer hover:shadow-md transition-shadow"
           >
             <div className="flex items-center justify-between mb-4">
               <Briefcase className="w-8 h-8 text-blue-600" />
@@ -157,7 +157,7 @@ export function RecruiterDashboard() {
           </div>
           <div
             onClick={() => navigate("/recruiter/applications")}
-            className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 border border-gray-200 dark:border-gray-700 cursor-pointer hover:shadow-md transition-shadow"
+            className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 border border-gray-200 dark:border-gray-800 cursor-pointer hover:shadow-md transition-shadow"
           >
             <div className="flex items-center justify-between mb-4">
               <Users className="w-8 h-8 text-green-600" />
@@ -171,7 +171,7 @@ export function RecruiterDashboard() {
           </div>
           <div
             onClick={() => navigate("/recruiter/applications")}
-            className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 border border-gray-200 dark:border-gray-700 cursor-pointer hover:shadow-md transition-shadow"
+            className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 border border-gray-200 dark:border-gray-800 cursor-pointer hover:shadow-md transition-shadow"
           >
             <div className="flex items-center justify-between mb-4">
               <FileText className="w-8 h-8 text-purple-600" />
@@ -185,7 +185,7 @@ export function RecruiterDashboard() {
           </div>
           <div
             onClick={() => navigate("/recruiter/offers")}
-            className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 border border-gray-200 dark:border-gray-700 cursor-pointer hover:shadow-md transition-shadow"
+            className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 border border-gray-200 dark:border-gray-800 cursor-pointer hover:shadow-md transition-shadow"
           >
             <div className="flex items-center justify-between mb-4">
               <TrendingUp className="w-8 h-8 text-orange-600" />
@@ -200,7 +200,7 @@ export function RecruiterDashboard() {
         </div>
 
         {/* Quick Actions */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 border border-gray-200 dark:border-gray-700 mb-8">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 border border-gray-200 dark:border-gray-800 mb-8">
           <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
             Quick Actions
           </h2>
@@ -230,7 +230,7 @@ export function RecruiterDashboard() {
         </div>
 
         {/* Recent Applications */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 border border-gray-200 dark:border-gray-700">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 border border-gray-200 dark:border-gray-800">
           <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
             Recent Applications
           </h2>
@@ -238,20 +238,20 @@ export function RecruiterDashboard() {
             {recentApplications.map((app) => (
               <div
                 key={app.id}
-                className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-lg"
+                className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg"
               >
-                <div>
-                  <h3 className="font-semibold text-gray-900 dark:text-white">
+                <div className="min-w-0">
+                  <h3 className="font-semibold text-gray-900 dark:text-white truncate">
                     {app.candidateName}
                   </h3>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                  <p className="text-sm text-gray-600 dark:text-gray-400 truncate">
                     {app.position}
                   </p>
                   <p className="text-xs text-gray-500 dark:text-gray-500">
                     Applied: {app.appliedDate}
                   </p>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   <span className="px-3 py-1 bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 rounded-full text-xs font-medium">
                     {app.status}
                   </span>

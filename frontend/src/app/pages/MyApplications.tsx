@@ -24,6 +24,13 @@ interface Application {
   assessmentLink: string;
   assessmentDueDate: string | null;
   assessmentTitle: string;
+  statusHistory?: Array<{
+    from?: string;
+    to?: string;
+    changedAt?: string;
+    note?: string;
+    changedBy?: string;
+  }>;
 }
 
 const STATUS_FLOW = ["Pending", "in-process", "Offer Extended", "Offer Accepted"];
@@ -90,13 +97,23 @@ export function MyApplications() {
     return s === 'rejected' || s === 'offer-declined';
   };
 
+  const displayStatus = (value: string) => {
+    const s = String(value || "").toLowerCase();
+    if (s === "in-process") return "In Process";
+    if (s === "offer-extended") return "Offer Extended";
+    if (s === "offer-accepted") return "Offer Accepted";
+    if (s === "offer-declined") return "Offer Declined";
+    if (s === "pending") return "Pending";
+    return value || "Status Updated";
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <DashboardHeader />
 
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-2">
             My Applications
           </h1>
           <p className="text-gray-600 dark:text-gray-400">
@@ -118,7 +135,7 @@ export function MyApplications() {
               return (
                 <div
                   key={app.id}
-                  className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden transition-all hover:shadow-md"
+                  className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-800 overflow-hidden transition-all hover:shadow-md"
                 >
                   {/* Main Row */}
                   <div
@@ -165,7 +182,7 @@ export function MyApplications() {
 
                   {/* Expanded Section */}
                   {expanded && (
-                    <div className="border-t border-gray-200 dark:border-gray-700 p-6 bg-gray-50 dark:bg-gray-800/50 space-y-6 animate-in">
+                    <div className="border-t border-gray-200 dark:border-gray-800 p-6 bg-gray-50 dark:bg-gray-800/50 space-y-6 animate-in">
 
                       {/* Status Progress Tracker */}
                       <div>
@@ -301,6 +318,41 @@ export function MyApplications() {
                           <Eye className="w-4 h-4" />
                           View Job Details
                         </button>
+                      </div>
+
+                      {/* Status Timeline */}
+                      <div className="pt-2">
+                        <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 uppercase tracking-wider">
+                          Status Timeline
+                        </h4>
+                        {Array.isArray(app.statusHistory) && app.statusHistory.length > 0 ? (
+                          <div className="space-y-2">
+                            {app.statusHistory
+                              .slice()
+                              .sort((a, b) =>
+                                new Date(a.changedAt || 0).getTime() - new Date(b.changedAt || 0).getTime()
+                              )
+                              .map((item, idx) => (
+                                <div key={idx} className="flex items-start gap-3 text-sm">
+                                  <div className="mt-1 w-2 h-2 rounded-full bg-blue-500" />
+                                  <div>
+                                    <p className="text-gray-900 dark:text-white font-medium">
+                                      {displayStatus(item.to || "")}
+                                      {item.from ? ` (from ${displayStatus(item.from)})` : ""}
+                                    </p>
+                                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                                      {item.changedAt ? new Date(item.changedAt).toLocaleString() : ""}
+                                      {item.note ? ` · ${item.note}` : ""}
+                                    </p>
+                                  </div>
+                                </div>
+                              ))}
+                          </div>
+                        ) : (
+                          <p className="text-xs text-gray-500 dark:text-gray-400">
+                            No status transitions recorded yet.
+                          </p>
+                        )}
                       </div>
                     </div>
                   )}

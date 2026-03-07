@@ -35,6 +35,14 @@ const ApplicationSchema = new mongoose.Schema({
         default: "Pending"
     },
 
+    statusHistory: [{
+        from: { type: String, default: "" },
+        to: { type: String, required: true },
+        changedBy: { type: String, default: "" }, // JWT user.id (UUID string)
+        note: { type: String, default: "" },
+        changedAt: { type: Date, default: Date.now }
+    }],
+
     // Interview & Assessment links (set by recruiter)
     interviewLink: { type: String, default: "" },
     interviewDate: { type: Date },

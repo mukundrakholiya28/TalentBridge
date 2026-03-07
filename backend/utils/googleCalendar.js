@@ -5,7 +5,16 @@ const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
 const GOOGLE_TIME_ZONE = process.env.GOOGLE_CALENDAR_TIMEZONE || "Asia/Kolkata";
 
 async function getAccessTokenForUser(user) {
-  if (!user?.google?.refreshToken) {
+  if (!user?.google) {
+    throw new Error(`${user?.userType === "recruiter" ? "Recruiter" : "Candidate"} has not connected Google Calendar.`);
+  }
+
+  // If stored access token is still valid (with 60s buffer), use it directly
+  if (user.google.accessToken && user.google.tokenExpiry && new Date(user.google.tokenExpiry) > new Date(Date.now() + 60000)) {
+    return user.google.accessToken;
+  }
+
+  if (!user.google.refreshToken) {
     throw new Error(`${user?.userType === "recruiter" ? "Recruiter" : "Candidate"} has not connected Google Calendar.`);
   }
 
@@ -16,17 +25,34 @@ async function getAccessTokenForUser(user) {
   const client = new OAuth2Client(GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET);
   client.setCredentials({ refresh_token: user.google.refreshToken });
 
-  const tokenResponse = await client.getAccessToken();
-  const accessToken =
-    typeof tokenResponse === "string"
-      ? tokenResponse
-      : tokenResponse?.token;
+  try {
+    const tokenResponse = await client.getAccessToken();
+    const accessToken =
+      typeof tokenResponse === "string"
+        ? tokenResponse
+        : tokenResponse?.token;
 
-  if (!accessToken) {
-    throw new Error("Unable to refresh Google access token");
+    if (!accessToken) {
+      throw new Error("Unable to refresh Google access token");
+    }
+
+    // Persist the refreshed token back to the user document
+    try {
+      const User = require("../models/User");
+      await User.findByIdAndUpdate(user._id, {
+        "google.accessToken": accessToken,
+        "google.tokenExpiry": new Date(Date.now() + 3500 * 1000)
+      });
+    } catch (_) { /* non-critical */ }
+
+    return accessToken;
+  } catch (refreshError) {
+    // If refresh fails but stored token is still valid, use it as last resort
+    if (user.google.accessToken && user.google.tokenExpiry && new Date(user.google.tokenExpiry) > new Date()) {
+      return user.google.accessToken;
+    }
+    throw refreshError;
   }
-
-  return accessToken;
 }
 
 async function createCalendarEventForUser(user, event) {

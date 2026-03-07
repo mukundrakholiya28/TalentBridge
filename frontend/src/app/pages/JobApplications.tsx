@@ -35,6 +35,18 @@ interface Job {
   requirements?: string[];
 }
 
+interface AtsCandidate {
+  _id: string;
+  userId?: string;
+  name: string;
+  email: string;
+  phone?: string;
+  skills?: string[];
+  location?: string;
+  summary?: string;
+  score: number;
+}
+
 export function JobApplications() {
   const { jobId } = useParams();
   const navigate = useNavigate();
@@ -43,6 +55,12 @@ export function JobApplications() {
   const [loading, setLoading] = useState(true);
   const [sortBy, setSortBy] = useState<'date' | 'match'>('match');
   const [searchTerm, setSearchTerm] = useState('');
+  const [atsQuery, setAtsQuery] = useState('');
+  const [atsSkills, setAtsSkills] = useState('');
+  const [atsLocation, setAtsLocation] = useState('');
+  const [atsLoading, setAtsLoading] = useState(false);
+  const [atsResults, setAtsResults] = useState<AtsCandidate[]>([]);
+  const [selectedApplicationIds, setSelectedApplicationIds] = useState<string[]>([]);
 
   useEffect(() => {
     fetchJobAndApplications();
@@ -157,6 +175,66 @@ export function JobApplications() {
     }
   };
 
+  const toggleSelectApplication = (applicationId: string, checked: boolean) => {
+    setSelectedApplicationIds((prev) => {
+      if (checked) return [...new Set([...prev, applicationId])];
+      return prev.filter((id) => id !== applicationId);
+    });
+  };
+
+  const bulkMoveToInProcess = async () => {
+    if (selectedApplicationIds.length === 0) {
+      toast.error("Select at least one application");
+      return;
+    }
+    try {
+      const result = await apiClient.put("/applications/bulk/status", {
+        ids: selectedApplicationIds,
+        status: "in-process"
+      });
+      if (result?.success) {
+        toast.success(`Moved ${result.updatedCount || 0} candidate(s) to in-process`);
+        setSelectedApplicationIds([]);
+        fetchJobAndApplications();
+      } else {
+        toast.error(result?.message || "Bulk update failed");
+      }
+    } catch (error) {
+      console.error("Bulk update error:", error);
+      toast.error("Failed to move selected candidates");
+    }
+  };
+
+  const runAtsSearch = async () => {
+    if (!atsQuery.trim()) {
+      toast.error("Enter a search query for ATS candidate discovery");
+      return;
+    }
+    setAtsLoading(true);
+    try {
+      const skills = atsSkills
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
+      const data = await apiClient.post("/ats/hybrid-search", {
+        query: atsQuery.trim(),
+        skills,
+        location: atsLocation.trim()
+      });
+      if (data?.success && Array.isArray(data.results)) {
+        setAtsResults(data.results);
+      } else {
+        setAtsResults([]);
+      }
+    } catch (error) {
+      console.error("ATS search error:", error);
+      toast.error("Failed to run ATS candidate search");
+      setAtsResults([]);
+    } finally {
+      setAtsLoading(false);
+    }
+  };
+
   const filteredApplications = applications.filter((app) => {
     if (!searchTerm) return true;
     const searchLower = searchTerm.toLowerCase();
@@ -203,7 +281,7 @@ export function JobApplications() {
           </button>
           {job ? (
             <>
-              <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-2">
                 {job.title}
               </h1>
               <p className="text-gray-600 dark:text-gray-400">
@@ -212,7 +290,7 @@ export function JobApplications() {
             </>
           ) : (
             <>
-              <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-2">
                 All Applications
               </h1>
               <p className="text-gray-600 dark:text-gray-400">
@@ -223,7 +301,7 @@ export function JobApplications() {
         </div>
 
         {/* ATS Controls & Search */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 mb-6 border border-gray-200 dark:border-gray-700">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 mb-6 border border-gray-200 dark:border-gray-800">
           <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
             <div className="w-full md:w-1/2 relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
@@ -251,20 +329,141 @@ export function JobApplications() {
           </div>
         </div>
 
+        {/* Recruiter Candidate Discovery (Keyword + Filters) */}
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 mb-6 border border-gray-200 dark:border-gray-800">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">
+            Candidate Discovery (Semantic + Filters)
+          </h3>
+          <div className="grid md:grid-cols-4 gap-3">
+            <input
+              value={atsQuery}
+              onChange={(e) => setAtsQuery(e.target.value)}
+              placeholder="e.g. backend ML engineer with Python"
+              className="md:col-span-2 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white"
+            />
+            <input
+              value={atsSkills}
+              onChange={(e) => setAtsSkills(e.target.value)}
+              placeholder="skills filter: Python, Node.js"
+              className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white"
+            />
+            <input
+              value={atsLocation}
+              onChange={(e) => setAtsLocation(e.target.value)}
+              placeholder="location filter"
+              className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white"
+            />
+          </div>
+          <div className="mt-3">
+            <button
+              onClick={runAtsSearch}
+              disabled={atsLoading}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-70"
+            >
+              {atsLoading ? "Searching..." : "Find Candidates"}
+            </button>
+          </div>
+
+          {atsResults.length > 0 && (
+            <div className="mt-4 space-y-3">
+              {atsResults.map((c) => (
+                <div key={c._id} className="p-4 rounded-lg border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-700/40">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="font-semibold text-gray-900 dark:text-white">{c.name || "Candidate"}</p>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">{c.email}</p>
+                      {c.location && <p className="text-xs text-gray-500 dark:text-gray-500">Location: {c.location}</p>}
+                      {Array.isArray(c.skills) && c.skills.length > 0 && (
+                        <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
+                          Skills: {c.skills.slice(0, 8).join(", ")}
+                        </p>
+                      )}
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm font-semibold text-blue-700 dark:text-blue-300">
+                        Match {(Number(c.score || 0) * 100).toFixed(1)}%
+                      </p>
+                      {c.userId && (
+                        <button
+                          onClick={() => navigate(`/candidate/profile?id=${c.userId}`)}
+                          className="mt-2 px-3 py-1 text-xs border border-blue-300 dark:border-blue-700 text-blue-700 dark:text-blue-300 rounded hover:bg-blue-50 dark:hover:bg-blue-900/20"
+                        >
+                          View Profile
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
         {loading ? (
           <div className="text-center py-12">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
           </div>
         ) : sortedApplications.length > 0 ? (
           <div className="space-y-4">
+            <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-800 p-4 flex flex-wrap items-center justify-between gap-3">
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                Selected: <span className="font-semibold text-gray-900 dark:text-white">{selectedApplicationIds.length}</span>
+              </p>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    const selectable = sortedApplications
+                      .filter((app) => {
+                        const s = String(app.status || "").toLowerCase();
+                        return s === "pending" || s === "new";
+                      })
+                      .map((app) => app.id);
+                    setSelectedApplicationIds(selectable);
+                  }}
+                  className="px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300"
+                >
+                  Select All Pending
+                </button>
+                <button
+                  onClick={() => setSelectedApplicationIds([])}
+                  className="px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300"
+                >
+                  Clear
+                </button>
+                <button
+                  onClick={bulkMoveToInProcess}
+                  disabled={selectedApplicationIds.length === 0}
+                  className="px-4 py-2 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-60"
+                >
+                  Proceed Selected
+                </button>
+              </div>
+            </div>
             {sortedApplications.map((app) => (
               <div
                 key={app.id}
-                className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 border border-gray-200 dark:border-gray-700"
+                className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 border border-gray-200 dark:border-gray-800"
               >
+                {(() => {
+                  const s = String(app.status || "").toLowerCase();
+                  const selectable = s === "pending" || s === "new";
+                  return (
+                    <div className="mb-3 flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={selectedApplicationIds.includes(app.id)}
+                        disabled={!selectable}
+                        onChange={(e) => toggleSelectApplication(app.id, e.target.checked)}
+                      />
+                      <span className="text-xs text-gray-500 dark:text-gray-400">
+                        {selectable ? "Select for bulk proceed" : "Only pending/new can be bulk selected"}
+                      </span>
+                    </div>
+                  );
+                })()}
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex items-start gap-4 flex-1">
-                    <div className="w-12 h-12 rounded-full bg-gradient-to-r from-red-500 via-orange-500 to-yellow-500 flex items-center justify-center text-white font-semibold text-lg">
+                    <div className="w-12 h-12 rounded-full bg-blue-600 flex items-center justify-center text-white font-semibold text-lg">
                       {app.candidate.fullName.charAt(0)}
                     </div>
                     <div className="flex-1">
@@ -417,7 +616,7 @@ export function JobApplications() {
                   )}
                   <button
                     onClick={() => navigate(`/candidate/profile?id=${app.candidateId}`)}
-                    className="flex items-center gap-2 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+                    className="flex items-center gap-2 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
                   >
                     <User className="w-4 h-4" />
                     View Details
@@ -427,7 +626,7 @@ export function JobApplications() {
             ))}
           </div>
         ) : (
-          <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+          <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-800">
             <User className="w-16 h-16 text-gray-400 mx-auto mb-4" />
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
               No applications yet

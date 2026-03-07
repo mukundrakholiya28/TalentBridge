@@ -37,7 +37,7 @@ const searchCandidates = async (req, res) => {
         const queryEmbedding = await createEmbedding(query);
 
         // Fetch all candidates with embeddings
-        const candidates = await Candidate.find({ embedding: { $exists: true, $ne: [] } });
+        const candidates = await Candidate.find({ embedding: { $exists: true, $ne: [] } }).populate("user", "id");
 
         let queryLower = query.toLowerCase();
 
@@ -68,15 +68,18 @@ const searchCandidates = async (req, res) => {
             const semanticScore = cosineSimilarity(queryEmbedding, c.embedding);
 
             let keywordBoost = 0;
-            if (c.skills && c.skills.some(s => keywordRegex.test(s))) keywordBoost += 0.3;
-            else if (keywordRegex.test(c.summary)) keywordBoost += 0.1;
+            const skillSource = [...(c.skills || []), ...(c.technicalSkills || [])];
+            if (skillSource.some(s => keywordRegex.test(s))) keywordBoost += 0.3;
+            else if (keywordRegex.test(c.summary || "")) keywordBoost += 0.1;
 
             return {
                 _id: c._id,
+                userId: c.user?.id || "",
                 name: c.name,
                 email: c.email,
                 phone: c.phone,
-                skills: c.skills,
+                skills: skillSource,
+                location: c.location || "",
                 summary: c.summary,
                 score: semanticScore + keywordBoost
             };
@@ -114,13 +117,15 @@ const matchCandidatesToJob = async (req, res) => {
             });
         }
 
-        const candidates = await Candidate.find({ embedding: { $exists: true, $ne: [] } });
+        const candidates = await Candidate.find({ embedding: { $exists: true, $ne: [] } }).populate("user", "id");
 
         const scored = candidates.map(c => ({
             _id: c._id,
+            userId: c.user?.id || "",
             name: c.name,
             email: c.email,
-            skills: c.skills,
+            skills: [...(c.skills || []), ...(c.technicalSkills || [])],
+            location: c.location || "",
             summary: c.summary,
             score: cosineSimilarity(job.embedding, c.embedding)
         }));
@@ -160,13 +165,16 @@ const hybridSearchCandidates = async (req, res) => {
         // Build filter criteria
         const filter = { embedding: { $exists: true, $ne: [] } };
         if (skills && skills.length > 0) {
-            filter.skills = { $in: skills };
+            filter.$or = [
+                { skills: { $in: skills } },
+                { technicalSkills: { $in: skills } }
+            ];
         }
         if (location) {
-            filter.location = location;
+            filter.location = new RegExp(String(location).trim(), "i");
         }
 
-        const candidates = await Candidate.find(filter);
+        const candidates = await Candidate.find(filter).populate("user", "id");
 
         let queryLower = query.toLowerCase();
 
@@ -196,14 +204,17 @@ const hybridSearchCandidates = async (req, res) => {
             const semanticScore = cosineSimilarity(queryEmbedding, c.embedding);
 
             let keywordBoost = 0;
-            if (c.skills && c.skills.some(s => keywordRegex.test(s))) keywordBoost += 0.3;
-            else if (keywordRegex.test(c.summary)) keywordBoost += 0.1;
+            const skillSource = [...(c.skills || []), ...(c.technicalSkills || [])];
+            if (skillSource.some(s => keywordRegex.test(s))) keywordBoost += 0.3;
+            else if (keywordRegex.test(c.summary || "")) keywordBoost += 0.1;
 
             return {
                 _id: c._id,
+                userId: c.user?.id || "",
                 name: c.name,
                 email: c.email,
-                skills: c.skills,
+                skills: skillSource,
+                location: c.location || "",
                 summary: c.summary,
                 score: semanticScore + keywordBoost
             };
@@ -243,16 +254,18 @@ const rankCandidatesForJob = async (req, res) => {
 
         const candidates = await Candidate.find({
             embedding: { $ne: [] }
-        });
+        }).populate("user", "id");
 
         const rankedCandidates = candidates.map(candidate => {
             const scoreData = calculateCandidateScore(candidate, job);
             return {
                 candidate: {
                     _id: candidate._id,
+                    userId: candidate.user?.id || "",
                     name: candidate.name,
                     email: candidate.email,
-                    skills: candidate.skills,
+                    skills: [...(candidate.skills || []), ...(candidate.technicalSkills || [])],
+                    location: candidate.location || "",
                     summary: candidate.summary
                 },
                 score: scoreData.finalScore,

@@ -25,6 +25,9 @@ import { SendOfferLetter } from "./pages/SendOfferLetter";
 import { RecruiterOffers } from "./pages/RecruiterOffers";
 import { RecruiterMessages } from "./pages/RecruiterMessages";
 import { OAuthCallback } from "./pages/OAuthCallback";
+import { CandidateAssessment } from "./pages/CandidateAssessment";
+import { RecruiterCreateAssessment } from "./pages/RecruiterCreateAssessment";
+import { RecruiterAssessmentResults } from "./pages/RecruiterAssessmentResults";
 
 export const router = createBrowserRouter([
   {
@@ -80,6 +83,10 @@ export const router = createBrowserRouter([
     Component: CandidateCompleteProfile,
   },
   {
+    path: "/candidate/assessment/:assessmentId",
+    Component: CandidateAssessment,
+  },
+  {
     path: "/job/:id",
     Component: JobDetails,
   },
@@ -122,6 +129,14 @@ export const router = createBrowserRouter([
   {
     path: "/recruiter/messages",
     Component: RecruiterMessages,
+  },
+  {
+    path: "/recruiter/assessment/:applicationId/create",
+    Component: RecruiterCreateAssessment,
+  },
+  {
+    path: "/recruiter/assessment/:assessmentId/results",
+    Component: RecruiterAssessmentResults,
   },
   {
     path: "/recruiter/settings",

@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  Briefcase,
   User,
   FileText,
   Clock,
@@ -9,20 +8,17 @@ import {
   MessageSquare,
   Settings,
   LogOut,
-  Moon,
-  Sun,
-  Bell
+  Home,
 } from "lucide-react";
-import { useTheme } from "next-themes";
-import { ThemeToggle } from "./ThemeToggle";
 import { toast } from "sonner";
 import logo from "../../assets/0ed04b30b5fcacaeb0065c439ebb8dc86719fd9d.png";
-import { clearAuthSession, setUserRoleForActiveSession } from "../../utils/authStorage";
+import { clearAuthSession, setUserRoleForActiveSession, getStoredUser, updateStoredUser } from "../../utils/authStorage";
+import { apiClient } from "../../utils/apiClient";
 
 export function DashboardHeader() {
   const navigate = useNavigate();
-  const { theme, setTheme } = useTheme();
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const [avatarUrl, setAvatarUrl] = useState(getStoredUser()?.avatarUrl || "");
 
   useEffect(() => {
     try {
@@ -30,6 +26,19 @@ export function DashboardHeader() {
     } catch (e) {
       // ignore
     }
+    apiClient.get('/candidate/profile').then((data) => {
+      if (data?.profile?.avatarUrl) {
+        setAvatarUrl(data.profile.avatarUrl);
+        updateStoredUser({ avatarUrl: data.profile.avatarUrl });
+      }
+    }).catch(() => {});
+
+    const onUserUpdated = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      if (detail?.avatarUrl !== undefined) setAvatarUrl(detail.avatarUrl);
+    };
+    window.addEventListener('user-updated', onUserUpdated);
+    return () => window.removeEventListener('user-updated', onUserUpdated);
   }, []);
 
   const handleLogout = async () => {
@@ -44,35 +53,44 @@ export function DashboardHeader() {
   };
 
   return (
-    <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-50">
+    <header className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           <div className="flex items-center gap-2 cursor-pointer" onClick={() => navigate("/candidate/dashboard")}>
-            <img src={logo} alt="CONSOLE" className="w-8 h-8" />
-            <span className="text-xl font-semibold text-gray-900 dark:text-white">CONSOLE</span>
+            <img src={logo} alt="CONSOLE" className="w-10 h-10" />
+            <span className="text-xl font-bold text-gray-900 dark:text-white">CONSOLE</span>
           </div>
 
           <div className="flex items-center gap-4">
-            <ThemeToggle />
-
+            <button
+              onClick={() => navigate("/candidate/dashboard")}
+              className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
+              title="Home"
+            >
+              <Home className="w-5 h-5" />
+            </button>
             <div className="relative">
               <button
                 onClick={() => setShowUserMenu(!showUserMenu)}
-                className="flex items-center gap-2 p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
+                className="flex items-center gap-2 p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg"
               >
-                <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
-                  <User className="w-5 h-5 text-white" />
+                <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center overflow-hidden">
+                  {avatarUrl ? (
+                    <img src={avatarUrl} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                  ) : (
+                    <User className="w-5 h-5 text-white" />
+                  )}
                 </div>
               </button>
 
               {showUserMenu && (
-                <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-2">
+                <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-800 py-2">
                   <button
                     onClick={() => {
                       navigate("/candidate/profile");
                       setShowUserMenu(false);
                     }}
-                    className="w-full flex items-center gap-3 px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                    className="w-full flex items-center gap-3 px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
                   >
                     <User className="w-4 h-4" />
                     <span>Profile</span>
@@ -82,7 +100,7 @@ export function DashboardHeader() {
                       navigate("/candidate/applications");
                       setShowUserMenu(false);
                     }}
-                    className="w-full flex items-center gap-3 px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                    className="w-full flex items-center gap-3 px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
                   >
                     <FileText className="w-4 h-4" />
                     <span>My Applications</span>
@@ -92,7 +110,7 @@ export function DashboardHeader() {
                       navigate("/candidate/in-process");
                       setShowUserMenu(false);
                     }}
-                    className="w-full flex items-center gap-3 px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                    className="w-full flex items-center gap-3 px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
                   >
                     <Clock className="w-4 h-4" />
                     <span>In Process</span>
@@ -102,7 +120,7 @@ export function DashboardHeader() {
                       navigate("/candidate/offers");
                       setShowUserMenu(false);
                     }}
-                    className="w-full flex items-center gap-3 px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                    className="w-full flex items-center gap-3 px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
                   >
                     <Mail className="w-4 h-4" />
                     <span>Offer Letters</span>
@@ -112,25 +130,25 @@ export function DashboardHeader() {
                       navigate("/candidate/messages");
                       setShowUserMenu(false);
                     }}
-                    className="w-full flex items-center gap-3 px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                    className="w-full flex items-center gap-3 px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
                   >
                     <MessageSquare className="w-4 h-4" />
                     <span>Messages</span>
                   </button>
-                  <div className="border-t border-gray-200 dark:border-gray-700 my-2"></div>
+                  <div className="border-t border-gray-200 dark:border-gray-800 my-2"></div>
                   <button
                     onClick={() => {
                       navigate("/candidate/settings");
                       setShowUserMenu(false);
                     }}
-                    className="w-full flex items-center gap-3 px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                    className="w-full flex items-center gap-3 px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
                   >
                     <Settings className="w-4 h-4" />
                     <span>Settings</span>
                   </button>
                   <button
                     onClick={handleLogout}
-                    className="w-full flex items-center gap-3 px-4 py-2 text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+                    className="w-full flex items-center gap-3 px-4 py-2 text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-gray-800"
                   >
                     <LogOut className="w-4 h-4" />
                     <span>Log Out</span>

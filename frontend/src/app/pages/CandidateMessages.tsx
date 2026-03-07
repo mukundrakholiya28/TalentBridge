@@ -5,6 +5,7 @@ import { Send, Phone, Video, Mic, Building, Search } from "lucide-react";
 import { apiClient } from "../../utils/apiClient";
 import { toast } from "sonner";
 import { getAuthToken } from "../../utils/authStorage";
+import { connectSocket, disconnectSocket } from "../../utils/socket";
 
 interface Message {
     id: string;
@@ -52,6 +53,18 @@ export function CandidateMessages() {
             }
         } catch (e) { }
         fetchConversations();
+
+        // Connect socket for real-time messages
+        const socket = connectSocket();
+        socket.on('new-message', (msg: any) => {
+            setMessages(prev => [...prev, msg]);
+            fetchConversations();
+        });
+
+        return () => {
+            socket.off('new-message');
+            disconnectSocket();
+        };
     }, []);
 
     useEffect(() => {
@@ -167,11 +180,11 @@ export function CandidateMessages() {
         <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
             <DashboardHeader />
 
-            <div className="h-[calc(100vh-4rem)] max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-                <div className="h-full bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden flex">
+            <div className="h-[calc(100vh-4rem)] max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
+                <div className="h-full bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-800 overflow-hidden flex">
                     {/* Conversations List */}
-                    <div className="w-80 border-r border-gray-200 dark:border-gray-700 flex flex-col">
-                        <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+                    <div className={`${selectedRecruiter ? 'hidden sm:flex' : 'flex'} w-full sm:w-80 border-r border-gray-200 dark:border-gray-800 flex-col`}>
+                        <div className="p-4 border-b border-gray-200 dark:border-gray-800">
                             <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">
                                 Messages
                             </h2>
@@ -195,7 +208,7 @@ export function CandidateMessages() {
                                     <button
                                         key={conv.recruiterId}
                                         onClick={() => setSelectedRecruiter(conv.recruiterId)}
-                                        className={`w-full p-4 border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors text-left ${selectedRecruiter === conv.recruiterId ? 'bg-blue-50 dark:bg-blue-900/20' : ''
+                                        className={`w-full p-4 border-b border-gray-200 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors text-left ${selectedRecruiter === conv.recruiterId ? 'bg-blue-50 dark:bg-blue-900/20' : ''
                                             }`}
                                     >
                                         <div className="flex items-start gap-3">
@@ -235,12 +248,18 @@ export function CandidateMessages() {
                     </div>
 
                     {/* Messages Area */}
-                    <div className="flex-1 flex flex-col">
+                    <div className={`${selectedRecruiter ? 'flex' : 'hidden sm:flex'} flex-1 flex-col`}>
                         {selectedRecruiter ? (
                             <>
                                 {/* Chat Header */}
-                                <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+                                <div className="p-4 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between">
                                     <div className="flex items-center gap-3">
+                                        <button
+                                            onClick={() => setSelectedRecruiter(null)}
+                                            className="sm:hidden p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
+                                        >
+                                            <svg className="w-5 h-5 text-gray-600 dark:text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+                                        </button>
                                         <div className="w-10 h-10 rounded-full bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500 flex items-center justify-center text-white font-semibold">
                                             {(selectedConversation?.recruiterName || "R").charAt(0)}
                                         </div>
@@ -256,14 +275,14 @@ export function CandidateMessages() {
                                     <div className="flex gap-2">
                                         <button
                                             onClick={startVoiceCall}
-                                            className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                                            className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
                                             title="Voice Call"
                                         >
                                             <Phone className="w-5 h-5 text-gray-600 dark:text-gray-400" />
                                         </button>
                                         <button
                                             onClick={startVideoCall}
-                                            className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                                            className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
                                             title="Video Call"
                                         >
                                             <Video className="w-5 h-5 text-gray-600 dark:text-gray-400" />
@@ -315,7 +334,7 @@ export function CandidateMessages() {
                                 </div>
 
                                 {/* Message Input */}
-                                <div className="p-4 border-t border-gray-200 dark:border-gray-700">
+                                <div className="p-4 border-t border-gray-200 dark:border-gray-800">
                                     <div className="flex gap-2">
                                         <input
                                             type="text"

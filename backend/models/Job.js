@@ -74,6 +74,15 @@ const JobSchema = new mongoose.Schema({
     default: []
   },
 
+  isOpen: {
+    type: Boolean,
+    default: true
+  },
+
+  closedAt: {
+    type: Date
+  },
+
   createdAt: {
     type: Date,
     default: Date.now

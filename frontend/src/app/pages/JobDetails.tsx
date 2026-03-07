@@ -23,15 +23,9 @@ export function JobDetails() {
 
   const fetchJobDetails = async () => {
     try {
-      const data = await apiClient.get('/jobs');
-      if (Array.isArray(data)) {
-        const foundJob = data.find((j: any) => j._id === id || j.id === id);
-        if (foundJob) {
-          setJob({
-            ...foundJob,
-            id: foundJob._id || foundJob.id
-          });
-        }
+      const data = await apiClient.get(`/jobs/${id}`);
+      if (data?.success && data.job) {
+        setJob({ ...data.job, id: data.job._id || data.job.id });
       }
     } catch (error) {
       console.error("Error fetching job details:", error);
@@ -74,18 +68,22 @@ export function JobDetails() {
           ← Back to Jobs
         </button>
 
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-8">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-4 sm:p-8">
           {/* Header */}
-          <div className="flex items-start gap-4 mb-6 pb-6 border-b border-gray-200 dark:border-gray-700">
-            <div className="w-16 h-16 bg-blue-100 dark:bg-blue-900/20 rounded-lg flex items-center justify-center flex-shrink-0">
-              <Building className="w-8 h-8 text-blue-600" />
+          <div className="flex items-start gap-3 sm:gap-4 mb-6 pb-6 border-b border-gray-200 dark:border-gray-800">
+            <div className="w-12 h-12 sm:w-16 sm:h-16 bg-blue-100 dark:bg-blue-900/20 rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden">
+              {job.recruiter?.avatarUrl ? (
+                <img src={job.recruiter.avatarUrl} alt="" className="w-full h-full object-cover rounded-lg" referrerPolicy="no-referrer" />
+              ) : (
+                <Building className="w-8 h-8 text-blue-600" />
+              )}
             </div>
 
             <div className="flex-1">
-              <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-2">
                 {job.title}
               </h1>
-              <p className="text-xl text-gray-600 dark:text-gray-400 mb-4">
+              <p className="text-base sm:text-xl text-gray-600 dark:text-gray-400 mb-4">
                 {job.company}
               </p>
 
@@ -191,7 +189,7 @@ export function JobDetails() {
           )}
 
           {/* Apply Button */}
-          <div className="pt-6 border-t border-gray-200 dark:border-gray-700">
+          <div className="pt-6 border-t border-gray-200 dark:border-gray-800">
             <button
               onClick={() => navigate(`/job/${job.id}/apply`)}
               className="w-full py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"

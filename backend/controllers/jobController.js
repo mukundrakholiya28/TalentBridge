@@ -58,7 +58,9 @@ const createJob = async (req, res) => {
  */
 const getAllJobs = async (req, res) => {
     try {
-        const jobs = await Job.find().sort({ createdAt: -1 });
+        const jobs = await Job.find({ isOpen: { $ne: false } })
+            .sort({ createdAt: -1 })
+            .populate('recruiter', 'avatarUrl name');
         res.status(200).json(jobs);
     } catch (error) {
         console.error("Fetch Jobs Error:", error);
@@ -73,9 +75,9 @@ const getAllJobs = async (req, res) => {
 const getJobById = async (req, res) => {
     try {
         const { id } = req.params;
-        let job = await Job.findOne({ id });
+        let job = await Job.findOne({ id }).populate('recruiter', 'avatarUrl name');
         if (!job) {
-            try { job = await Job.findById(id); } catch (_) { }
+            try { job = await Job.findById(id).populate('recruiter', 'avatarUrl name'); } catch (_) { }
         }
         if (!job) {
             return res.status(404).json({ success: false, message: "Job not found" });
@@ -107,7 +109,8 @@ const semanticSearchJobs = async (req, res) => {
         if (location && location.trim() !== '') {
             filter.location = new RegExp(location.trim(), 'i');
         }
-        const jobs = await Job.find(filter);
+        const jobs = await Job.find({ ...filter, isOpen: { $ne: false } })
+            .populate('recruiter', 'avatarUrl name');
 
         // Cosine similarity
         const cosineSimilarity = (a, b) => {

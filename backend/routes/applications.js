@@ -7,7 +7,8 @@ const {
     getCandidateApplications,
     getRecruiterApplications,
     getApplicationsForJob,
-    updateApplicationStatus
+    updateApplicationStatus,
+    bulkUpdateApplicationStatus
 } = require("../controllers/applicationController");
 
 const authMiddleware = require("../middleware/authMiddleware");
@@ -29,6 +30,7 @@ router.get("/candidate", authMiddleware, getCandidateApplications); // alias
 // Recruiter routes
 router.get("/recruiter", authMiddleware, getRecruiterApplications);
 router.get("/job/:jobId", authMiddleware, getApplicationsForJob);
+router.put("/bulk/status", authMiddleware, bulkUpdateApplicationStatus);
 router.put("/:id/status", authMiddleware, updateApplicationStatus);
 
 

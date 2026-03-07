@@ -89,7 +89,7 @@ export function JobApplication() {
 
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-8">
           <div className="mb-8">
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-2">
               Apply for Position
             </h1>
             <p className="text-gray-600 dark:text-gray-400">
@@ -183,7 +183,7 @@ export function JobApplication() {
                 />
                 <label
                   htmlFor="resume"
-                  className="flex items-center justify-center w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700"
+                  className="flex items-center justify-center w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800"
                 >
                   <Upload className="w-5 h-5 text-gray-400 mr-2" />
                   <span className="text-sm text-gray-600 dark:text-gray-400">
@@ -259,7 +259,7 @@ export function JobApplication() {
               <button
                 type="button"
                 onClick={() => navigate(`/job/${id}`)}
-                className="flex-1 py-3 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700"
+                className="flex-1 py-3 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800"
               >
                 Cancel
               </button>

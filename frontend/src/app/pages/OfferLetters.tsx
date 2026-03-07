@@ -1,9 +1,10 @@
 import { useState, useEffect } from "react";
 import { DashboardHeader } from "../components/DashboardHeader";
-import { Building, DollarSign, Calendar, MapPin, FileText, Check, X, Briefcase, Clock, MessageSquare } from "lucide-react";
+import { Building, DollarSign, Calendar, MapPin, FileText, Check, X, Briefcase, Clock, MessageSquare, Handshake, Send } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { apiClient } from "../../utils/apiClient";
 import { toast } from "sonner";
+import { getAuthToken } from "../../utils/authStorage";
 
 interface Offer {
   id: string;
@@ -28,6 +29,8 @@ export function OfferLetters() {
   const navigate = useNavigate();
   const [offers, setOffers] = useState<Offer[]>([]);
   const [loading, setLoading] = useState(true);
+  const [negotiatingOfferId, setNegotiatingOfferId] = useState<string | null>(null);
+  const [counterOffer, setCounterOffer] = useState({ salary: "", startDate: "", message: "" });
 
   useEffect(() => {
     fetchOffers();
@@ -80,6 +83,54 @@ export function OfferLetters() {
     }
   };
 
+  const handleNegotiate = async (offerId: string) => {
+    if (!counterOffer.salary && !counterOffer.startDate && !counterOffer.message) {
+      toast.error("Please fill in at least one negotiation field");
+      return;
+    }
+    try {
+      const data = await apiClient.put(`/offers/${offerId}/respond`, {
+        status: "negotiating",
+        counterOffer
+      });
+      if (data.success) {
+        toast.success("Counter-offer sent to recruiter");
+        setNegotiatingOfferId(null);
+        setCounterOffer({ salary: "", startDate: "", message: "" });
+        fetchOffers();
+      } else {
+        toast.error(data.message || "Failed to send counter-offer");
+      }
+    } catch (error) {
+      console.error("Negotiate error:", error);
+      toast.error("Failed to send counter-offer");
+    }
+  };
+
+  const downloadOfferPdf = async (offerId: string) => {
+    try {
+      const token = getAuthToken();
+      if (!token) throw new Error("No auth token");
+      const response = await fetch(`http://localhost:5000/api/offers/${offerId}/pdf`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (!response.ok) throw new Error(`Failed to download (${response.status})`);
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `offer-letter-${offerId}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+      toast.success("Offer letter downloaded");
+    } catch (error) {
+      console.error("Offer PDF download error:", error);
+      toast.error("Failed to download offer letter");
+    }
+  };
+
   const formatDate = (dateStr: string) => {
     if (!dateStr) return "";
     try {
@@ -110,7 +161,7 @@ export function OfferLetters() {
 
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-2">
             Offer Letters
           </h1>
           <p className="text-gray-600 dark:text-gray-400">
@@ -129,10 +180,10 @@ export function OfferLetters() {
               return (
                 <div
                   key={offer.id}
-                  className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden"
+                  className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-800 overflow-hidden"
                 >
                   {/* Header */}
-                  <div className={`p-6 border-b border-gray-200 dark:border-gray-700 ${offer.status === 'accepted'
+                  <div className={`p-6 border-b border-gray-200 dark:border-gray-800 ${offer.status === 'accepted'
                       ? 'bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/10 dark:to-emerald-900/10'
                       : offer.status === 'pending'
                         ? 'bg-gradient-to-r from-yellow-50 to-orange-50 dark:from-yellow-900/10 dark:to-orange-900/10'
@@ -262,27 +313,114 @@ export function OfferLetters() {
                     </p>
 
                     {/* Actions */}
-                    {offer.status === "pending" && (
-                      <div className="flex gap-4">
+                    {(offer.status === "pending" || offer.status === "negotiating") && (
+                      <div className="space-y-4">
+                        <div className="flex gap-3">
+                          <button
+                            onClick={() => handleRespond(offer.id, "accepted")}
+                            className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium transition-colors"
+                          >
+                            <Check className="w-5 h-5" />
+                            Accept Offer
+                          </button>
+                          <button
+                            onClick={() => {
+                              setNegotiatingOfferId(negotiatingOfferId === offer.id ? null : offer.id);
+                              setCounterOffer({ salary: offer.salary || "", startDate: offer.startDate || "", message: "" });
+                            }}
+                            className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-amber-500 text-white rounded-lg hover:bg-amber-600 font-medium transition-colors"
+                          >
+                            <Handshake className="w-5 h-5" />
+                            Negotiate
+                          </button>
+                          <button
+                            onClick={() => handleRespond(offer.id, "rejected")}
+                            className="flex-1 flex items-center justify-center gap-2 px-6 py-3 border border-red-300 dark:border-red-700 text-red-600 dark:text-red-400 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 font-medium transition-colors"
+                          >
+                            <X className="w-5 h-5" />
+                            Decline
+                          </button>
+                          <button
+                            onClick={() => navigate(`/candidate/messages?to=${offer.recruiterId}`)}
+                            className="flex items-center justify-center gap-2 px-4 py-3 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                          >
+                            <MessageSquare className="w-5 h-5" />
+                          </button>
+                          <button
+                            onClick={() => downloadOfferPdf(offer.id)}
+                            className="flex items-center justify-center gap-2 px-4 py-3 border border-blue-300 dark:border-blue-700 text-blue-700 dark:text-blue-300 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
+                          >
+                            <FileText className="w-5 h-5" />
+                          </button>
+                        </div>
+
+                        {/* Negotiation Form */}
+                        {negotiatingOfferId === offer.id && (
+                          <div className="p-5 bg-amber-50 dark:bg-amber-900/10 rounded-lg border border-amber-200 dark:border-amber-800">
+                            <h4 className="font-semibold text-amber-800 dark:text-amber-300 mb-4 flex items-center gap-2">
+                              <Handshake className="w-5 h-5" />
+                              Submit Counter-Offer
+                            </h4>
+                            <div className="grid md:grid-cols-2 gap-4 mb-4">
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Proposed Salary</label>
+                                <input
+                                  type="text"
+                                  value={counterOffer.salary}
+                                  onChange={(e) => setCounterOffer({ ...counterOffer, salary: e.target.value })}
+                                  placeholder="e.g. $95,000/year"
+                                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Proposed Start Date</label>
+                                <input
+                                  type="text"
+                                  value={counterOffer.startDate}
+                                  onChange={(e) => setCounterOffer({ ...counterOffer, startDate: e.target.value })}
+                                  placeholder="e.g. April 15, 2026"
+                                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                                />
+                              </div>
+                            </div>
+                            <div className="mb-4">
+                              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Message to Recruiter</label>
+                              <textarea
+                                value={counterOffer.message}
+                                onChange={(e) => setCounterOffer({ ...counterOffer, message: e.target.value })}
+                                placeholder="Explain your reasoning or additional requests..."
+                                rows={3}
+                                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-amber-500 focus:border-transparent resize-none"
+                              />
+                            </div>
+                            <div className="flex gap-3">
+                              <button
+                                onClick={() => handleNegotiate(offer.id)}
+                                className="flex items-center gap-2 px-5 py-2.5 bg-amber-600 text-white rounded-lg hover:bg-amber-700 font-medium transition-colors"
+                              >
+                                <Send className="w-4 h-4" />
+                                Send Counter-Offer
+                              </button>
+                              <button
+                                onClick={() => { setNegotiatingOfferId(null); setCounterOffer({ salary: "", startDate: "", message: "" }); }}
+                                className="px-5 py-2.5 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {offer.status !== "pending" && offer.status !== "negotiating" && (
+                      <div className="mt-4">
                         <button
-                          onClick={() => handleRespond(offer.id, "accepted")}
-                          className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium transition-colors"
+                          onClick={() => downloadOfferPdf(offer.id)}
+                          className="inline-flex items-center gap-2 px-4 py-2 border border-blue-300 dark:border-blue-700 text-blue-700 dark:text-blue-300 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
                         >
-                          <Check className="w-5 h-5" />
-                          Accept Offer
-                        </button>
-                        <button
-                          onClick={() => handleRespond(offer.id, "rejected")}
-                          className="flex-1 flex items-center justify-center gap-2 px-6 py-3 border border-red-300 dark:border-red-700 text-red-600 dark:text-red-400 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 font-medium transition-colors"
-                        >
-                          <X className="w-5 h-5" />
-                          Decline Offer
-                        </button>
-                        <button
-                          onClick={() => navigate(`/candidate/messages?to=${offer.recruiterId}`)}
-                          className="flex items-center justify-center gap-2 px-4 py-3 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-                        >
-                          <MessageSquare className="w-5 h-5" />
+                          <FileText className="w-4 h-4" />
+                          Download Offer Letter (PDF)
                         </button>
                       </div>
                     )}

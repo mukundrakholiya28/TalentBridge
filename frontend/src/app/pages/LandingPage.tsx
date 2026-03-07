@@ -10,7 +10,9 @@ import {
   Mail,
   Phone,
   MapPin,
-  HelpCircle
+  HelpCircle,
+  Menu,
+  X
 } from "lucide-react";
 import { ImageWithFallback } from "../components/figma/ImageWithFallback";
 import logo from "../../assets/0ed04b30b5fcacaeb0065c439ebb8dc86719fd9d.png";
@@ -19,6 +21,7 @@ import { getAuthToken, getUserRole } from "../../utils/authStorage";
 export function LandingPage() {
   const navigate = useNavigate();
   const [currentSlide, setCurrentSlide] = useState(0);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const heroSlides = [
     {
@@ -75,22 +78,18 @@ export function LandingPage() {
 
   const perks = [
     {
-      icon: <Search className="w-8 h-8" />,
       title: "Smart Job Matching",
       description: "AI-powered job recommendations based on your skills and preferences"
     },
     {
-      icon: <Briefcase className="w-8 h-8" />,
       title: "Unified Application Tracking",
       description: "Track all your applications in one place with real-time status updates"
     },
     {
-      icon: <Users className="w-8 h-8" />,
       title: "Direct Company Connect",
       description: "Connect directly with hiring managers and skip the middleman"
     },
     {
-      icon: <TrendingUp className="w-8 h-8" />,
       title: "Career Growth Tools",
       description: "Access resources and insights to accelerate your career"
     }
@@ -98,37 +97,47 @@ export function LandingPage() {
 
   const tools = [
     {
-      icon: <Shield className="w-6 h-6" />,
       title: "Resume Parser",
       description: "Automatically extract and organize your resume details into a professional profile"
     },
     {
-      icon: <Zap className="w-6 h-6" />,
       title: "One-Click Apply",
       description: "Apply to multiple jobs with a single click using your saved profile"
     },
     {
-      icon: <Users className="w-6 h-6" />,
       title: "Interview Scheduler",
       description: "Seamlessly schedule and manage interviews with integrated calendar"
     },
     {
-      icon: <TrendingUp className="w-6 h-6" />,
       title: "Offer Management",
       description: "Compare and manage multiple job offers in one dashboard"
     }
   ];
 
   const companies = [
-    "Google", "Microsoft", "Amazon", "Meta", "Apple",
-    "Netflix", "Tesla", "IBM", "Oracle", "Adobe",
-    "Salesforce", "Intel"
+    {logo: new URL("../../assets/companies/google.jpg", import.meta.url).href },
+    {logo: new URL("../../assets/companies/microsoft.png", import.meta.url).href },
+    {logo: new URL("../../assets/companies/amazon.jpg", import.meta.url).href },
+    {logo: new URL("../../assets/companies/meta.png", import.meta.url).href },
+    {logo: new URL("../../assets/companies/apple.png", import.meta.url).href },
+    {logo: new URL("../../assets/companies/netflix.png", import.meta.url).href },
+    {logo: new URL("../../assets/companies/tesla.png", import.meta.url).href },
+    {logo: new URL("../../assets/companies/ibm.png", import.meta.url).href },
+    {logo: new URL("../../assets/companies/oracle.png", import.meta.url).href },
+    {logo: new URL("../../assets/companies/adobe.png", import.meta.url).href },
+    {logo: new URL("../../assets/companies/salesforce.png", import.meta.url).href },
+    {logo: new URL("../../assets/companies/intel.png", import.meta.url).href },
   ];
 
   const institutions = [
-    "MIT", "Stanford University", "Harvard University",
-    "UC Berkeley", "Carnegie Mellon", "Georgia Tech",
-    "University of Washington", "Cornell University"
+    {logo: new URL("../../assets/institutions/mnit.png", import.meta.url).href },
+    {logo: new URL("../../assets/institutions/iitb.png", import.meta.url).href },
+    {logo: new URL("../../assets/institutions/iitk.png", import.meta.url).href },
+    {logo: new URL("../../assets/institutions/iitkgp.png", import.meta.url).href },
+    {logo: new URL("../../assets/institutions/mit.png", import.meta.url).href },
+    {logo: new URL("../../assets/institutions/harvard.png", import.meta.url).href },
+    {logo: new URL("../../assets/institutions/iitm.png", import.meta.url).href },
+    {logo: new URL("../../assets/institutions/iitd.png", import.meta.url).href },
   ];
 
   return (
@@ -138,8 +147,8 @@ export function LandingPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center gap-2">
-              <img src={logo} alt="CONSOLE" className="w-8 h-8" />
-              <span className="text-xl font-semibold text-gray-900 dark:text-white">CONSOLE</span>
+              <img src={logo} alt="CONSOLE" className="w-10 h-10" />
+              <span className="text-xl font-bold text-gray-900 dark:text-white">CONSOLE</span>
             </div>
 
             <nav className="hidden md:flex items-center gap-6">
@@ -149,7 +158,7 @@ export function LandingPage() {
               <a href="#about" className="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white">About</a>
             </nav>
 
-            <div className="flex items-center gap-3">
+            <div className="hidden md:flex items-center gap-3">
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => navigate("/candidate/signin")}
@@ -180,12 +189,36 @@ export function LandingPage() {
                 </button>
               </div>
             </div>
+
+            {/* Mobile hamburger */}
+            <button
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="md:hidden p-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg"
+            >
+              {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+            </button>
           </div>
+
+          {/* Mobile menu */}
+          {mobileMenuOpen && (
+            <div className="md:hidden border-t border-gray-200 dark:border-gray-800 py-4 space-y-2">
+              <a href="#perks" onClick={() => setMobileMenuOpen(false)} className="block px-4 py-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg">Perks</a>
+              <a href="#tools" onClick={() => setMobileMenuOpen(false)} className="block px-4 py-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg">Tools</a>
+              <a href="#partners" onClick={() => setMobileMenuOpen(false)} className="block px-4 py-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg">Partners</a>
+              <a href="#about" onClick={() => setMobileMenuOpen(false)} className="block px-4 py-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg">About</a>
+              <div className="border-t border-gray-200 dark:border-gray-800 pt-2 mt-2 space-y-2">
+                <button onClick={() => { navigate("/candidate/signin"); setMobileMenuOpen(false); }} className="block w-full text-left px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg">Candidate Sign In</button>
+                <button onClick={() => { navigate("/recruiter/signin"); setMobileMenuOpen(false); }} className="block w-full text-left px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg">Recruiter Sign In</button>
+                <button onClick={() => { navigate("/candidate/signup"); setMobileMenuOpen(false); }} className="block w-full text-left px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700">Candidate Sign Up</button>
+                <button onClick={() => { navigate("/recruiter/signup"); setMobileMenuOpen(false); }} className="block w-full text-left px-4 py-2 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700">Recruiter Sign Up</button>
+              </div>
+            </div>
+          )}
         </div>
       </header>
 
       {/* Hero Section */}
-      <section className="bg-gradient-to-b from-blue-50 to-white dark:from-gray-800 dark:to-gray-900 py-20 relative overflow-hidden">
+      <section className="bg-gradient-to-b from-blue-50 to-white dark:from-gray-900 dark:to-gray-800 py-12 md:py-20 relative overflow-hidden">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid md:grid-cols-2 gap-12 items-center">
             {/* Text content with fade transition */}
@@ -196,10 +229,10 @@ export function LandingPage() {
                   className={`transition-opacity duration-700 ${index === currentSlide ? 'opacity-100' : 'opacity-0 absolute inset-0 pointer-events-none'
                     }`}
                 >
-                  <h1 className="text-5xl font-bold text-gray-900 dark:text-white mb-6">
+                  <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-gray-900 dark:text-white mb-6">
                     {slide.title}
                   </h1>
-                  <p className="text-xl text-gray-600 dark:text-gray-300 mb-8">
+                  <p className="text-base sm:text-lg md:text-xl text-gray-600 dark:text-gray-300 mb-8">
                     {slide.description}
                   </p>
                   <div className="flex gap-4">
@@ -211,7 +244,7 @@ export function LandingPage() {
                     </button>
                     <button
                       onClick={slide.secondaryButton.onClick}
-                      className="px-6 py-3 border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                      className="px-6 py-3 border border-gray-300 dark:border-gray-800 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
                     >
                       {slide.secondaryButton.text}
                     </button>
@@ -246,7 +279,7 @@ export function LandingPage() {
                 onClick={() => setCurrentSlide(index)}
                 className={`w-3 h-3 rounded-full transition-all duration-300 ${index === currentSlide
                   ? 'bg-blue-600 w-8'
-                  : 'bg-gray-300 dark:bg-gray-600 hover:bg-gray-400 dark:hover:bg-gray-500'
+                  : 'bg-gray-300 dark:bg-gray-600 hover:bg-gray-400 dark:hover:bg-dark-500'
                   }`}
                 aria-label={`Go to slide ${index + 1}`}
               />
@@ -256,13 +289,13 @@ export function LandingPage() {
       </section>
 
       {/* Perks Section */}
-      <section id="perks" className="py-20 bg-white dark:bg-gray-900">
+      <section id="perks" className="py-12 md:py-20 bg-white dark:bg-gray-900">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold text-gray-900 dark:text-white mb-4">
+          <div className="text-center mb-10 md:mb-16">
+            <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-4">
               Why Choose CONSOLE?
             </h2>
-            <p className="text-xl text-gray-600 dark:text-gray-300">
+            <p className="text-base sm:text-lg md:text-xl text-gray-600 dark:text-gray-300">
               Experience the future of recruitment with our innovative platform
             </p>
           </div>
@@ -271,9 +304,8 @@ export function LandingPage() {
             {perks.map((perk, index) => (
               <div
                 key={index}
-                className="p-6 border border-gray-200 dark:border-gray-800 rounded-lg hover:shadow-lg transition-shadow"
+                className="p-6 border border-gray-100 dark:border-gray-800 rounded-lg hover:shadow-lg transition-shadow"
               >
-                <div className="text-blue-600 mb-4">{perk.icon}</div>
                 <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
                   {perk.title}
                 </h3>
@@ -287,13 +319,13 @@ export function LandingPage() {
       </section>
 
       {/* Tools Section */}
-      <section id="tools" className="py-20 bg-gray-50 dark:bg-gray-800">
+      <section id="tools" className="py-12 md:py-20 bg-gray-50 dark:bg-gray-800">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold text-gray-900 dark:text-white mb-4">
+          <div className="text-center mb-10 md:mb-16">
+            <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-4">
               Powerful Tools at Your Fingertips
             </h2>
-            <p className="text-xl text-gray-600 dark:text-gray-300">
+            <p className="text-base sm:text-lg md:text-xl text-gray-600 dark:text-gray-300">
               Everything you need to streamline your job search and hiring process
             </p>
           </div>
@@ -304,11 +336,10 @@ export function LandingPage() {
                 key={index}
                 className="bg-white dark:bg-gray-900 p-6 rounded-lg shadow-sm hover:shadow-md transition-shadow"
               >
-                <div className="text-blue-600 mb-3">{tool.icon}</div>
-                <h3 className="font-semibold text-gray-900 dark:text-white mb-2">
+                <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
                   {tool.title}
                 </h3>
-                <p className="text-sm text-gray-600 dark:text-gray-300">
+                <p className="text-gray-600 dark:text-gray-300">
                   {tool.description}
                 </p>
               </div>
@@ -318,41 +349,45 @@ export function LandingPage() {
       </section>
 
       {/* Partners Section */}
-      <section id="partners" className="py-20 bg-white dark:bg-gray-900">
+      <section id="partners" className="py-12 md:py-20 bg-white dark:bg-gray-900">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* Companies */}
-          <div className="mb-16">
-            <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-8 text-center">
+          <div className="mb-10 md:mb-16">
+            <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-6 md:mb-8 text-center">
               Trusted by Leading Companies
             </h2>
             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-8">
               {companies.map((company, index) => (
                 <div
                   key={index}
-                  className="flex items-center justify-center p-4 bg-gray-50 dark:bg-gray-800 rounded-lg"
+                  className="flex flex-col items-center justify-center gap-3 p-4 bg-white dark:bg-white rounded-lg"
                 >
-                  <span className="font-semibold text-gray-700 dark:text-gray-300">
-                    {company}
-                  </span>
+                  <img
+                    src={company.logo}
+                    className="w-25 h-25 object-contain"
+                    onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                  />
                 </div>
               ))}
             </div>
           </div>
 
           {/* Educational Institutions */}
-          <div>
-            <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-8 text-center">
+          <div className="mb-10 md:mb-16">
+            <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-6 md:mb-8 text-center">
               Partner Educational Institutions
             </h2>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-8">
               {institutions.map((institution, index) => (
                 <div
                   key={index}
-                  className="flex items-center justify-center p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg"
+                  className="flex flex-col items-center justify-center gap-3 p-4 bg-white dark:bg-white rounded-lg"
                 >
-                  <span className="font-semibold text-blue-900 dark:text-blue-300 text-center">
-                    {institution}
-                  </span>
+                  <img
+                    src={institution.logo}
+                    className="w-25 h-25 object-contain"
+                    onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                  />
                 </div>
               ))}
             </div>
@@ -361,9 +396,9 @@ export function LandingPage() {
       </section>
 
       {/* About Us / Footer */}
-      <footer id="about" className="bg-gray-900 dark:bg-black text-white py-16">
+      <footer id="about" className="bg-gray-900 dark:bg-black text-white py-10 md:py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid md:grid-cols-4 gap-12 mb-12">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-8 md:gap-12 mb-12">
             <div>
               <div className="flex items-center gap-2 mb-4">
                 <img src={logo} alt="CONSOLE" className="w-6 h-6" />
@@ -379,15 +414,15 @@ export function LandingPage() {
               <div className="space-y-3">
                 <div className="flex items-center gap-2 text-gray-400">
                   <Mail className="w-4 h-4" />
-                  <span>contact@console.com</span>
+                  <span>console.committee@gmail.com</span>
                 </div>
                 <div className="flex items-center gap-2 text-gray-400">
                   <Phone className="w-4 h-4" />
-                  <span>+1 (555) 123-4567</span>
+                  <span>+91 82009 15780</span>
                 </div>
                 <div className="flex items-center gap-2 text-gray-400">
                   <MapPin className="w-4 h-4" />
-                  <span>San Francisco, CA</span>
+                  <span>Jaipur, Rajasthan</span>
                 </div>
               </div>
             </div>

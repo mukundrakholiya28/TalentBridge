@@ -65,12 +65,12 @@ export function RecruiterSignIn() {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex flex-col">
-      <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+      <header className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <Link to="/" className="flex items-center gap-2">
-              <img src={logo} alt="CONSOLE" className="w-8 h-8" />
-              <span className="text-xl font-semibold text-gray-900 dark:text-white">CONSOLE</span>
+              <img src={logo} alt="CONSOLE" className="w-10 h-10" />
+              <span className="text-xl font-bold text-gray-900 dark:text-white">CONSOLE</span>
             </Link>
             <div className="flex items-center gap-4">
               <span className="text-sm text-gray-600 dark:text-gray-400">New to CONSOLE?</span>
@@ -87,9 +87,9 @@ export function RecruiterSignIn() {
 
       <div className="flex-1 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
         <div className="max-w-md w-full">
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-8">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-4 sm:p-8">
             <div className="mb-8">
-              <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+              <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-2">
                 Recruiter Sign In
               </h2>
               <p className="text-gray-600 dark:text-gray-400">

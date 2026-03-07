@@ -21,6 +21,21 @@ const sendMessage = async (req, res) => {
         });
 
         await newMessage.save();
+
+        // Emit real-time event to receiver
+        const io = req.app.get('io');
+        if (io) {
+            io.to(receiverId).emit('new-message', {
+                id: newMessage._id,
+                senderId,
+                receiverId,
+                content,
+                type: type || 'text',
+                timestamp: newMessage.createdAt || new Date().toISOString(),
+                read: false
+            });
+        }
+
         res.status(201).json({ success: true, message: newMessage });
     } catch (error) {
         console.error('Send Message Error:', error);

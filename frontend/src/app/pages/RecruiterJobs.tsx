@@ -79,7 +79,7 @@ export function RecruiterJobs() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="flex justify-between items-center mb-8">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-2">
               My Jobs
             </h1>
             <p className="text-gray-600 dark:text-gray-400">
@@ -88,7 +88,7 @@ export function RecruiterJobs() {
           </div>
           <button
             onClick={() => navigate("/recruiter/post-job")}
-            className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-red-500 via-orange-500 to-yellow-500 text-white rounded-lg hover:opacity-90 transition-opacity"
+            className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:opacity-90 transition-opacity"
           >
             <Plus className="w-5 h-5" />
             Post New Job
@@ -104,7 +104,7 @@ export function RecruiterJobs() {
             {jobs.map((job) => (
               <div
                 key={job.id}
-                className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 border border-gray-200 dark:border-gray-700 hover:shadow-md transition-shadow"
+                className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 border border-gray-200 dark:border-gray-800 hover:shadow-md transition-shadow"
               >
                 <div className="flex justify-between items-start mb-4">
                   <div className="flex-1">
@@ -154,7 +154,7 @@ export function RecruiterJobs() {
             ))}
           </div>
         ) : (
-          <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+          <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-800">
             <Briefcase className="w-16 h-16 text-gray-400 mx-auto mb-4" />
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
               No jobs posted yet
@@ -164,7 +164,7 @@ export function RecruiterJobs() {
             </p>
             <button
               onClick={() => navigate("/recruiter/post-job")}
-              className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-red-500 via-orange-500 to-yellow-500 text-white rounded-lg hover:opacity-90 transition-opacity"
+              className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:opacity-90 transition-opacity"
             >
               <Plus className="w-5 h-5" />
               Post Your First Job

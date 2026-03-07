@@ -45,7 +45,7 @@ const getProfile = async (req, res) => {
 
     const profile = await ensureRecruiterProfile(user);
 
-    res.json({ profile });
+    res.json({ profile: { ...profile.toObject(), avatarUrl: user.avatarUrl } });
   } catch (err) {
     console.error('Get Recruiter Profile Error:', err);
     res.status(500).json({ error: 'Failed to get recruiter profile' });
@@ -70,6 +70,9 @@ const updateProfile = async (req, res) => {
     fields.forEach(f => {
       if (req.body[f] !== undefined) profile[f] = req.body[f];
     });
+
+    // Sync avatarUrl to User document (not stored on Recruiter sub-doc).
+    if (req.body.avatarUrl !== undefined) user.avatarUrl = req.body.avatarUrl;
 
     if (req.body.technicalSkills !== undefined && req.body.skills === undefined) {
       profile.skills = req.body.technicalSkills;
@@ -102,7 +105,7 @@ const updateProfile = async (req, res) => {
     if (req.body.skills !== undefined && req.body.technicalSkills === undefined) user.technicalSkills = req.body.skills;
     await user.save();
 
-    res.json({ profile });
+    res.json({ profile: { ...profile.toObject(), avatarUrl: user.avatarUrl } });
   } catch (err) {
     console.error('Update Recruiter Profile Error:', err);
     res.status(500).json({ error: 'Failed to update recruiter profile' });

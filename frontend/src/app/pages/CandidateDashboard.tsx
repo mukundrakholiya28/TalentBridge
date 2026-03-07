@@ -16,6 +16,7 @@ interface Job {
   createdAt?: string;
   description: string;
   logo?: string;
+  recruiter?: { avatarUrl?: string; name?: string };
 }
 
 export function CandidateDashboard() {
@@ -118,16 +119,20 @@ export function CandidateDashboard() {
             <div
               key={job.id}
               onClick={() => navigate(`/job/${job.id}`)}
-              className="bg-white dark:bg-gray-800 rounded-lg shadow-sm hover:shadow-md transition-shadow p-6 cursor-pointer border border-gray-200 dark:border-gray-700"
+              className="bg-white dark:bg-gray-800 rounded-lg shadow-sm hover:shadow-md transition-shadow p-6 cursor-pointer border border-gray-200 dark:border-gray-800"
             >
-              <div className="flex items-start justify-between">
+              <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
                 <div className="flex-1">
                   <div className="flex items-start gap-4">
-                    <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/20 rounded-lg flex items-center justify-center flex-shrink-0">
-                      <Building className="w-6 h-6 text-blue-600" />
+                    <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/20 rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden">
+                      {job.recruiter?.avatarUrl ? (
+                        <img src={job.recruiter.avatarUrl} alt="" className="w-full h-full object-cover rounded-lg" referrerPolicy="no-referrer" />
+                      ) : (
+                        <Building className="w-6 h-6 text-blue-600" />
+                      )}
                     </div>
 
-                    <div className="flex-1">
+                    <div className="flex-1 min-w-0">
                       <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-1">
                         {job.title}
                       </h3>
@@ -135,7 +140,7 @@ export function CandidateDashboard() {
                         {job.company}
                       </p>
 
-                      <div className="flex flex-wrap gap-4 text-sm text-gray-600 dark:text-gray-400 mb-3">
+                      <div className="flex flex-wrap gap-3 sm:gap-4 text-sm text-gray-600 dark:text-gray-400 mb-3">
                         <div className="flex items-center gap-1">
                           <MapPin className="w-4 h-4" />
                           <span>{job.location}</span>
@@ -166,7 +171,7 @@ export function CandidateDashboard() {
                     e.stopPropagation();
                     navigate(`/job/${job.id}/apply`);
                   }}
-                  className="ml-4 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 whitespace-nowrap"
+                  className="sm:ml-4 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 whitespace-nowrap self-start sm:self-auto"
                 >
                   Apply Now
                 </button>

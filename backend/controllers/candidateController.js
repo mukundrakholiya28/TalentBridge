@@ -41,7 +41,7 @@ const getProfile = async (req, res) => {
 
     const profile = await ensureCandidateProfile(user);
 
-    res.json({ profile });
+    res.json({ profile: { ...profile.toObject(), avatarUrl: user.avatarUrl } });
   } catch (err) {
     console.error('Get Candidate Profile Error:', err);
     res.status(500).json({ error: 'Failed to get candidate profile' });
@@ -61,6 +61,9 @@ const updateProfile = async (req, res) => {
     fields.forEach(f => {
       if (req.body[f] !== undefined) profile[f] = req.body[f];
     });
+
+    // Sync avatarUrl to User document (not stored on Candidate sub-doc).
+    if (req.body.avatarUrl !== undefined) user.avatarUrl = req.body.avatarUrl;
 
     if (req.body.technicalSkills !== undefined && req.body.skills === undefined) {
       profile.skills = req.body.technicalSkills;
@@ -90,11 +93,30 @@ const updateProfile = async (req, res) => {
     if (req.body.skills !== undefined && req.body.technicalSkills === undefined) user.technicalSkills = req.body.skills;
     await user.save();
 
-    res.json({ profile });
+    res.json({ profile: { ...profile.toObject(), avatarUrl: user.avatarUrl } });
   } catch (err) {
     console.error('Update Candidate Profile Error:', err);
     res.status(500).json({ error: 'Failed to update candidate profile' });
   }
 };
 
-module.exports = { getProfile, updateProfile };
+const getProfileById = async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id);
+    if (!user || user.userType !== 'candidate') {
+      return res.status(404).json({ error: 'Candidate not found' });
+    }
+
+    const profile = await Candidate.findOne({ user: user._id });
+    if (!profile) {
+      return res.status(404).json({ error: 'Candidate profile not found' });
+    }
+
+    res.json({ profile });
+  } catch (err) {
+    console.error('Get Candidate Profile By ID Error:', err);
+    res.status(500).json({ error: 'Failed to get candidate profile' });
+  }
+};
+
+module.exports = { getProfile, updateProfile, getProfileById };

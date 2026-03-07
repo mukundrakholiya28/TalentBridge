@@ -9,6 +9,18 @@ const {
     buildAssessmentEvent
 } = require("../utils/googleCalendar");
 
+const pushStatusHistory = (application, { from, to, changedBy, note }) => {
+    if (!application || !to) return;
+    if (!Array.isArray(application.statusHistory)) application.statusHistory = [];
+    application.statusHistory.push({
+        from: from || "",
+        to,
+        changedBy: changedBy || "",
+        note: note || "",
+        changedAt: new Date()
+    });
+};
+
 
 /**
  * CANDIDATE — Apply to a job
@@ -32,6 +44,9 @@ const applyToJob = async (req, res) => {
 
         if (!job) {
             return res.status(404).json({ success: false, message: "Job not found" });
+        }
+        if (job.isOpen === false) {
+            return res.status(400).json({ success: false, message: "This job position is closed" });
         }
 
         // Find candidate user by UUID `id`
@@ -70,7 +85,14 @@ const applyToJob = async (req, res) => {
             linkedin: linkedin || "",
             availableFrom: availableFrom || null,
             resumeFileName: req.file ? req.file.originalname : null,
-            status: "Pending"
+            status: "Pending",
+            statusHistory: [{
+                from: "",
+                to: "Pending",
+                changedBy: candidateId,
+                note: "Application submitted",
+                changedAt: new Date()
+            }]
         });
 
         res.status(201).json({ success: true, application });
@@ -98,6 +120,11 @@ const getCandidateApplications = async (req, res) => {
             .sort({ createdAt: -1 });
 
         const mapped = applications.map(app => ({
+            statusHistory: Array.isArray(app.statusHistory) ? app.statusHistory : [],
+            auditLog: (Array.isArray(app.statusHistory) ? app.statusHistory : []).map((h) => ({
+                status: h?.to || app.status || "Pending",
+                timestamp: h?.changedAt || app.createdAt
+            })),
             _id: app._id,
             id: app._id.toString(),
             jobId: app.jobId?._id?.toString() || app.jobId?.toString() || "",
@@ -143,6 +170,11 @@ const getRecruiterApplications = async (req, res) => {
 
         // RecruiterDashboard.tsx expects a plain array with these fields
         const mapped = applications.map(app => ({
+            statusHistory: Array.isArray(app.statusHistory) ? app.statusHistory : [],
+            auditLog: (Array.isArray(app.statusHistory) ? app.statusHistory : []).map((h) => ({
+                status: h?.to || app.status || "Pending",
+                timestamp: h?.changedAt || app.createdAt
+            })),
             id: app._id.toString(),
             _id: app._id,
             jobId: app.jobId?._id?.toString() || "",
@@ -201,6 +233,11 @@ const getApplicationsForJob = async (req, res) => {
             .sort({ createdAt: -1 });
 
         const mapped = applications.map(app => ({
+            statusHistory: Array.isArray(app.statusHistory) ? app.statusHistory : [],
+            auditLog: (Array.isArray(app.statusHistory) ? app.statusHistory : []).map((h) => ({
+                status: h?.to || app.status || "Pending",
+                timestamp: h?.changedAt || app.createdAt
+            })),
             id: app._id.toString(),
             _id: app._id,
             jobId: job._id.toString(),
@@ -259,7 +296,18 @@ const updateApplicationStatus = async (req, res) => {
             return res.status(404).json({ success: false, message: "Candidate not found" });
         }
 
-        if (status) application.status = status;
+        const previousStatus = application.status || "";
+        if (status) {
+            application.status = status;
+            if (status !== previousStatus) {
+                pushStatusHistory(application, {
+                    from: previousStatus,
+                    to: status,
+                    changedBy: req.user.id,
+                    note: "Status updated by recruiter"
+                });
+            }
+        }
         let reminderWarning = "";
         let calendarEventCreated = false;
 
@@ -310,22 +358,35 @@ const updateApplicationStatus = async (req, res) => {
         }
 
         if (assessmentDueDate && (assessmentTitle !== undefined || assessmentLink !== undefined)) {
+            const assessmentEvent = buildAssessmentEvent({
+                application,
+                candidateUser,
+                recruiterUser,
+                dueDate: assessmentDueDate,
+                assessmentTitle: assessmentTitle || application.assessmentTitle,
+                assessmentLink: assessmentLink || application.assessmentLink
+            });
+            // Try candidate's calendar first, fallback to recruiter's
+            let created = false;
             try {
-                await createCalendarEventForUser(
-                    candidateUser,
-                    buildAssessmentEvent({
-                        application,
-                        candidateUser,
-                        recruiterUser,
-                        dueDate: assessmentDueDate,
-                        assessmentTitle: assessmentTitle || application.assessmentTitle,
-                        assessmentLink: assessmentLink || application.assessmentLink
-                    })
-                );
+                await createCalendarEventForUser(candidateUser, assessmentEvent);
+                created = true;
                 calendarEventCreated = true;
-            } catch (error) {
-                console.error("Assessment calendar event error:", error);
-                reminderWarning = reminderWarning || error.message || "OA reminder could not be added to the candidate's Google Calendar.";
+            } catch (candidateErr) {
+                console.error("Assessment calendar (candidate):", candidateErr.message);
+                reminderWarning = reminderWarning || candidateErr.message;
+            }
+            if (!created) {
+                try {
+                    await createCalendarEventForUser(recruiterUser, assessmentEvent);
+                    calendarEventCreated = true;
+                    if (reminderWarning) {
+                        reminderWarning += " Event added to recruiter's calendar instead.";
+                    }
+                } catch (recruiterErr) {
+                    console.error("Assessment calendar (recruiter fallback):", recruiterErr.message);
+                    reminderWarning = reminderWarning || recruiterErr.message || "OA reminder could not be added to Google Calendar.";
+                }
             }
         }
 
@@ -338,11 +399,59 @@ const updateApplicationStatus = async (req, res) => {
     }
 };
 
+/**
+ * RECRUITER — Bulk update application status for multiple candidates
+ */
+const bulkUpdateApplicationStatus = async (req, res) => {
+    try {
+        const { ids, status } = req.body || {};
+        if (!Array.isArray(ids) || ids.length === 0 || !status) {
+            return res.status(400).json({ success: false, message: "ids[] and status are required" });
+        }
+
+        const recruiterUser = await User.findOne({ id: req.user.id });
+        if (!recruiterUser) {
+            return res.status(404).json({ success: false, message: "Recruiter not found" });
+        }
+
+        const applications = await Application.find({
+            _id: { $in: ids.filter((x) => mongoose.Types.ObjectId.isValid(x)) },
+            recruiterId: recruiterUser._id
+        });
+
+        let updatedCount = 0;
+        for (const application of applications) {
+            const previousStatus = application.status || "";
+            application.status = status;
+            if (status !== previousStatus) {
+                pushStatusHistory(application, {
+                    from: previousStatus,
+                    to: status,
+                    changedBy: req.user.id,
+                    note: "Status updated in bulk by recruiter"
+                });
+            }
+            await application.save();
+            updatedCount += 1;
+        }
+
+        return res.json({
+            success: true,
+            updatedCount,
+            requestedCount: ids.length
+        });
+    } catch (error) {
+        console.error("Bulk Update Status Error:", error);
+        return res.status(500).json({ success: false, message: "Bulk status update failed" });
+    }
+};
+
 
 module.exports = {
     applyToJob,
     getCandidateApplications,
     getRecruiterApplications,
     getApplicationsForJob,
-    updateApplicationStatus
+    updateApplicationStatus,
+    bulkUpdateApplicationStatus
 };
