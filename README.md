@@ -1,187 +1,176 @@
-# TalentBridge
+# 🚀 TalentBridge: AI-Powered Recruitment Ecosystem
 
-TalentBridge is an AI-powered recruitment platform that connects
-recruiters and candidates using intelligent resume analysis, semantic
-search, and automated evaluation.
+**TalentBridge** is an advanced recruitment platform that leverages **Semantic Search** and **LLM-driven evaluation** to bridge the gap between top-tier talent and recruiters. By utilizing high-dimensional vector embeddings, it moves beyond traditional keyword matching to identify the best candidates through deep contextual understanding.
 
-The platform streamlines the hiring process by allowing recruiters to
-post jobs, search resumes using semantic similarity, and evaluate
-candidates efficiently.
+---
 
-------------------------------------------------------------------------
+## 📖 Table of Contents
+- [✨ Key Features](#-key-features)
+- [🛠️ Tech Stack](#-tech-stack)
+- [📐 System Architecture](#-system-architecture)
+- [⚙️ Installation & Setup](#-installation--setup)
+- [🔄 AI Workflow](#-ai-workflow)
+- [📁 Project Structure](#-project-structure)
+- [🛡️ Security Features](#-security-features)
+- [🔮 Future Roadmap](#-future-roadmap)
 
-## Features
+---
 
-### Candidate Features
+## ✨ Key Features
 
--   Create candidate profile
--   Upload resume
--   Apply to jobs
--   Track application status
+### 👤 For Candidates
+* **Smart Profiles:** Secure registration and profile management.
+* **Resume Intelligence:** Instant PDF parsing and data extraction via AI.
+* **Application Tracking:** Real-time status updates and historical tracking.
 
-### Recruiter Features
+### 💼 For Recruiters
+* **Job Management:** Simplified interface for posting and managing job lifecycles.
+* **AI-Based Evaluation:** Automated candidate scoring using Google Generative AI.
+* **Semantic Search:** Identify candidates based on skill intent rather than exact string matches.
 
--   Post job openings
--   View candidate applications
--   Semantic resume search
--   ATS-based resume evaluation
+---
 
-### AI Features
+## 🛠️ Tech Stack
 
--   Resume parsing
--   Semantic search using embeddings
--   AI-based resume evaluation
--   Candidate ranking
+| Layer | Technologies |
+| :--- | :--- |
+| **Frontend** | React, Vite, Material UI, Radix UI, Emotion |
+| **Backend** | Node.js, Express.js, JWT, Multer |
+| **Database** | MongoDB, Mongoose ODM |
+| **AI / ML** | Transformers.js, Google Generative AI (Gemini), pdf-parse |
 
-------------------------------------------------------------------------
+---
 
-## Tech Stack
+## 📐 System Architecture
 
-### Frontend
+TalentBridge utilizes a decoupled client-server architecture with a dedicated AI processing layer.
 
--   React
--   React Router
--   JavaScript
--   Tailwind CSS
 
-### Backend
 
--   Node.js
--   Express.js
+```text
+Frontend (React + Vite) 
+       │ 
+       ▼ 
+REST API (Node.js + Express) 
+       │ 
+       ├── Authentication (JWT) 
+       ├── Job Management 
+       ├── Application System 
+       └── Semantic Search 
+               │ 
+               ▼ 
+        MongoDB Database
 
-### Database
+AI Layer (Logic)
+       ├── Resume Parsing (pdf-parse)
+       ├── Embedding Generation (Transformers.js)
+       └── Evaluation (Google GenAI)
 
--   MongoDB Atlas
--   Mongoose
+```
 
-### AI / Search
+---
 
--   HuggingFace embeddings
--   Vector based semantic search
+## ⚙️ Installation & Setup
 
-------------------------------------------------------------------------
+### 1. Clone the Repository
 
-## Project Architecture
+```bash
+git clone [https://github.com/YOUR_USERNAME/TalentBridge.git](https://github.com/YOUR_USERNAME/TalentBridge.git)
+cd TalentBridge
 
-    TalentBridge
-    │
-    ├── backend
-    │   ├── controllers
-    │   ├── middleware
-    │   ├── models
-    │   ├── routes
-    │   ├── utils
-    │   └── server.js
-    │
-    ├── frontend
-    │   ├── components
-    │   ├── pages
-    │   ├── services
-    │   └── App.js
-    │
-    └── README.md
+```
 
-------------------------------------------------------------------------
+### 2. Configure Environment Variables
 
-## Installation
+Create a `.env` file inside the `backend` folder:
 
-### 1 Clone the repository
+```env
+PORT=5000
+MONGO_URI=your_mongodb_atlas_connection
+JWT_SECRET=your_secret_key
+GOOGLE_API_KEY=your_google_genai_key
 
-    git clone https://github.com/YOUR_USERNAME/TalentBridge.git
-    cd TalentBridge
+```
 
-### 2 Install Backend Dependencies
+### 3. Install Backend Dependencies
 
-    cd backend
-    npm install
+```bash
+cd backend
+npm install
+npm start
 
-### 3 Install Frontend Dependencies
+```
 
-    cd ../frontend
-    npm install
+### 4. Install Frontend Dependencies
 
-### 4 Setup Environment Variables
+```bash
+cd ../frontend
+npm install
+npm run dev
 
-Create a `.env` file inside the backend folder:
+```
 
-    PORT=5000
-    MONGO_URI=your_mongodb_connection
-    JWT_SECRET=your_secret
+---
 
-### 5 Run Backend
+## 🔄 AI Workflow
 
-    cd backend
-    npm start
+The platform treats resume data as high-dimensional vectors to ensure precision matching.
 
-### 6 Run Frontend
+```mermaid
+graph TD
+    A[Resume Upload] --> B[PDF Parsing: pdf-parse]
+    B --> C[Text Extraction]
+    C --> D[Embedding Generation: Transformers.js]
+    D --> E[Semantic Matching: Vector Similarity]
+    E --> F[LLM Evaluation: Google Gemini]
+    F --> G[Ranked Candidate List]
 
-    cd frontend
-    npm run dev
+```
 
-------------------------------------------------------------------------
+---
 
-## API Modules
+## 📁 Project Structure
 
-  Module         Description
-  -------------- -----------------------------------
-  Auth           User authentication
-  Jobs           Job creation and management
-  Applications   Candidate applications
-  ATS            Resume evaluation
-  Search         Semantic resume search
-  Messaging      Recruiter-candidate communication
+```text
+TalentBridge
+├── backend
+│   ├── controllers/    # API Request Handlers
+│   ├── middleware/     # Auth & File Upload logic
+│   ├── models/         # Mongoose Schemas
+│   ├── routes/         # API Route definitions
+│   ├── utils/          # AI logic & PDF parsing helpers
+│   └── server.js       # Entry point
+├── frontend
+│   ├── components/     # Reusable UI elements
+│   ├── pages/          # View components
+│   ├── services/       # Frontend API calls
+│   ├── assets/         # Static assets
+│   └── main.jsx        # React DOM entry
+└── README.md
 
-------------------------------------------------------------------------
+```
 
-## Folder Structure
+---
 
-### Backend
+## 🛡️ Security Features
 
-    backend/
-    controllers/
-    models/
-    middleware/
-    routes/
-    utils/
+* **Bcrypt:** Password hashing for data protection.
+* **JWT:** Stateless authentication for secure API access.
+* **Multer Filtering:** Validation of file types for secure resume uploads.
+* **Env Protection:** Strict separation of API keys from the source code.
 
-### Frontend
+---
 
-    frontend/
-    components/
-    pages/
-    services/
+## 🔮 Future Roadmap
 
-------------------------------------------------------------------------
+* [ ] **AI Interview Assistant:** Automated initial technical screenings.
+* [ ] **Skill Graph:** Visualizing candidate skill density and growth.
+* [ ] **Recruiter Analytics:** Data-driven dashboard for hiring metrics.
 
-## Future Improvements
+---
 
--   Interview scheduling
--   Video interview integration
--   AI interview assistant
--   Candidate skill graph
--   Recruiter analytics dashboard
+## 📄 License
 
-------------------------------------------------------------------------
+Distributed under the **MIT License**.
 
-## Contributing
-
-Contributions are welcome.
-
-Steps:
-
-1.  Fork the repository
-2.  Create feature branch
-3.  Commit changes
-4.  Create pull request
-
-------------------------------------------------------------------------
-
-## License
-
-MIT License
-
-Copyright (c) 2026 Mukund Rakholiya
-
-Permission is hereby granted, free of charge, to any person obtaining a
-copy of this software and associated documentation files to deal in the
-Software without restriction.
+*Copyright (c) 2026 Mukund Rakholiya*
