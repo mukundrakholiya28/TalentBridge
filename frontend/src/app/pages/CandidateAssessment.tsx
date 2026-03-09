@@ -3,7 +3,14 @@ import { useNavigate, useParams } from "react-router-dom";
 import { DashboardHeader } from "../components/DashboardHeader";
 import { apiClient } from "../../utils/apiClient";
 import { toast } from "sonner";
-import Editor from "@monaco-editor/react";
+import Editor, { loader } from "@monaco-editor/react";
+
+// Ensure Monaco loads from CDN with explicit config
+loader.config({
+  paths: {
+    vs: "https://cdn.jsdelivr.net/npm/monaco-editor@0.55.1/min/vs"
+  }
+});
 
 type Question = {
   prompt: string;
@@ -195,10 +202,13 @@ export function CandidateAssessment() {
       setRemainingSeconds((prev) => Math.max(0, prev - 1));
     }, 1000);
     return () => clearInterval(timer);
-  }, [remainingSeconds, loading, result, submitting, autoSubmitted]);
+  }, [remainingSeconds, loading, result, submitting, autoSubmitted, handleSubmit]);
+
+  const runningTestsRef = useRef(runningTests);
+  runningTestsRef.current = runningTests;
 
   const runTests = useCallback(async (cqIdx: number) => {
-    if (!assessmentId || runningTests[cqIdx]) return;
+    if (!assessmentId || runningTestsRef.current[cqIdx]) return;
     setRunningTests((prev) => ({ ...prev, [cqIdx]: true }));
     try {
       const data = await apiClient.post(`/oa/assessments/${assessmentId}/run-tests`, {
@@ -217,15 +227,17 @@ export function CandidateAssessment() {
         if (data.totalHidden > 0) {
           toast.info(`${data.totalHidden} hidden test case(s) will be evaluated on submit`);
         }
+      } else {
+        toast.error(data?.message || "Test execution failed");
       }
     } catch {
       toast.error("Failed to run test cases");
     } finally {
       setRunningTests((prev) => ({ ...prev, [cqIdx]: false }));
     }
-  }, [assessmentId, codeSolutions, runningTests]);
+  }, [assessmentId, codeSolutions]);
 
-  const handleSubmit = async (isAuto = false) => {
+  const handleSubmit = useCallback(async (isAuto = false) => {
     if (!assessmentId || !assessment) return;
     if (submitting) return;
     setSubmitting(true);
@@ -254,7 +266,7 @@ export function CandidateAssessment() {
     } finally {
       setSubmitting(false);
     }
-  };
+  }, [assessmentId, assessment, submitting, answers, codeSolutions]);
 
   if (loading) {
     return (
@@ -534,13 +546,22 @@ function CodingPanel({ question, code, onCodeChange, testResults, onRunTests, ru
             )}
           </button>
         </div>
-        <div className="flex-1 min-h-0">
+        <div className="flex-1" style={{ minHeight: '400px' }}>
           <Editor
             height="100%"
             language={MONACO_LANGUAGE_MAP[question.language] || "plaintext"}
             value={code}
             onChange={(value) => onCodeChange(value || "")}
             theme="vs-dark"
+            loading={
+              <div className="flex items-center justify-center h-full bg-[#1e1e1e] text-gray-400 text-sm">
+                <svg className="animate-spin h-5 w-5 mr-2" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                </svg>
+                Loading editor...
+              </div>
+            }
             options={{
               minimap: { enabled: false },
               fontSize: 14,

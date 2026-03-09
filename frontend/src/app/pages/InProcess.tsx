@@ -205,11 +205,9 @@ export function InProcess() {
 
                     {/* Assessment */}
                     {app.assessmentLink ? (
-                      <a
-                        href={app.assessmentLink}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-3 p-4 bg-orange-50 dark:bg-orange-900/10 rounded-lg border border-orange-200 dark:border-orange-800 hover:border-orange-400 transition-all group"
+                      <button
+                        onClick={() => navigate(app.assessmentLink)}
+                        className="flex items-center gap-3 p-4 bg-orange-50 dark:bg-orange-900/10 rounded-lg border border-orange-200 dark:border-orange-800 hover:border-orange-400 transition-all group text-left"
                       >
                         <div className="w-10 h-10 bg-orange-100 dark:bg-orange-900/30 rounded-lg flex items-center justify-center flex-shrink-0 group-hover:bg-orange-200 transition-colors">
                           <ClipboardList className="w-5 h-5 text-orange-600" />
@@ -223,7 +221,7 @@ export function InProcess() {
                             {app.assessmentDueDate && ` · Due ${new Date(app.assessmentDueDate).toLocaleDateString()}`}
                           </p>
                         </div>
-                      </a>
+                      </button>
                     ) : (
                       <div className="flex items-center gap-3 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-dashed border-gray-300 dark:border-gray-600 opacity-60">
                         <div className="w-10 h-10 bg-gray-100 dark:bg-gray-600 rounded-lg flex items-center justify-center">
