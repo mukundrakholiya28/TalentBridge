@@ -31,9 +31,14 @@ Thumbs.db
 uploads/
 temp/
 
+# vite cache
+.vite/
+
 # coverage
 coverage/
 
 # package lock files (optional)
 package-lock.json
 yarn.lock
+.vercel
+.env*.local

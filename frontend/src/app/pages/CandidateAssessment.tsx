@@ -188,22 +188,6 @@ export function CandidateAssessment() {
     };
   }, [assessmentId, activeTab, codeSolutions, hasCodingQuestions]);
 
-  // Timer countdown
-  useEffect(() => {
-    if (loading || result || submitting) return;
-    if (remainingSeconds <= 0) {
-      if (!autoSubmitted) {
-        setAutoSubmitted(true);
-        void handleSubmit(true);
-      }
-      return;
-    }
-    const timer = setInterval(() => {
-      setRemainingSeconds((prev) => Math.max(0, prev - 1));
-    }, 1000);
-    return () => clearInterval(timer);
-  }, [remainingSeconds, loading, result, submitting, autoSubmitted, handleSubmit]);
-
   const runningTestsRef = useRef(runningTests);
   runningTestsRef.current = runningTests;
 
@@ -267,6 +251,22 @@ export function CandidateAssessment() {
       setSubmitting(false);
     }
   }, [assessmentId, assessment, submitting, answers, codeSolutions]);
+
+  // Timer countdown
+  useEffect(() => {
+    if (loading || result || submitting) return;
+    if (remainingSeconds <= 0) {
+      if (!autoSubmitted) {
+        setAutoSubmitted(true);
+        void handleSubmit(true);
+      }
+      return;
+    }
+    const timer = setInterval(() => {
+      setRemainingSeconds((prev) => Math.max(0, prev - 1));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [remainingSeconds, loading, result, submitting, autoSubmitted, handleSubmit]);
 
   if (loading) {
     return (
