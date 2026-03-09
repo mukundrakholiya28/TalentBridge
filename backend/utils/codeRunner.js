@@ -1,79 +1,130 @@
-const PISTON_API_URL = process.env.PISTON_API_URL || "https://emkc.run/api/v2/piston";
-const TIMEOUT_MS = 10000;
+const { spawn } = require("child_process");
+const path = require("path");
+const fs = require("fs");
+const os = require("os");
+const crypto = require("crypto");
 
-// Map app language names → Piston language identifiers and versions
-const PISTON_LANGUAGE_MAP = {
-    javascript: { language: "javascript", version: "18.15.0" },
-    python:     { language: "python",     version: "3.10.0"  },
-    typescript: { language: "typescript", version: "5.0.3"   },
-    java:       { language: "java",       version: "15.0.2"  },
-    cpp:        { language: "c++",        version: "10.2.0"  },
-    c:          { language: "c",          version: "10.2.0"  },
-    go:         { language: "go",         version: "1.16.2"  }
+const TIMEOUT_MS = 10000;
+const MAX_OUTPUT_SIZE = 1024 * 64; // 64 KB
+
+const LANGUAGE_CONFIG = {
+    javascript: { cmd: "node", ext: ".js" },
+    python: { cmd: process.platform === "win32" ? "python" : "python3", ext: ".py" },
+    typescript: { cmd: "npx", args: ["tsx"], ext: ".ts" },
+    cpp: { compile: true, compiler: "g++", ext: ".cpp", outExt: process.platform === "win32" ? ".exe" : "" },
+    c: { compile: true, compiler: "gcc", ext: ".c", outExt: process.platform === "win32" ? ".exe" : "" },
+    java: { compile: true, compiler: "javac", ext: ".java", runner: "java" },
+    go: { cmd: "go", args: ["run"], ext: ".go" }
+};
+
+const makeTempDir = () => {
+    const dir = path.join(os.tmpdir(), `tb-runner-${crypto.randomBytes(8).toString("hex")}`);
+    fs.mkdirSync(dir, { recursive: true });
+    return dir;
+};
+
+const cleanupDir = (dir) => {
+    try {
+        fs.rmSync(dir, { recursive: true, force: true });
+    } catch {
+        // best effort
+    }
+};
+
+const spawnWithTimeout = (cmd, args, options, timeoutMs) => {
+    return new Promise((resolve) => {
+        let stdout = "";
+        let stderr = "";
+        let killed = false;
+
+        const proc = spawn(cmd, args, {
+            ...options,
+            stdio: ["pipe", "pipe", "pipe"],
+            windowsHide: true
+        });
+
+        const timer = setTimeout(() => {
+            killed = true;
+            proc.kill("SIGKILL");
+        }, timeoutMs);
+
+        proc.stdout.on("data", (chunk) => {
+            if (stdout.length < MAX_OUTPUT_SIZE) stdout += chunk.toString();
+        });
+        proc.stderr.on("data", (chunk) => {
+            if (stderr.length < MAX_OUTPUT_SIZE) stderr += chunk.toString();
+        });
+
+        proc.on("close", (code) => {
+            clearTimeout(timer);
+            resolve({ stdout, stderr, exitCode: code, timedOut: killed });
+        });
+
+        proc.on("error", (err) => {
+            clearTimeout(timer);
+            resolve({ stdout, stderr: err.message, exitCode: 1, timedOut: false });
+        });
+
+        if (options.input != null) {
+            proc.stdin.write(options.input);
+            proc.stdin.end();
+        } else {
+            proc.stdin.end();
+        }
+    });
+};
+
+const compileAndRun = async (code, language, input, timeoutMs) => {
+    const config = LANGUAGE_CONFIG[language];
+    if (!config) return { stdout: "", stderr: `Unsupported language: ${language}`, exitCode: 1, timedOut: false };
+
+    const tmpDir = makeTempDir();
+    try {
+        if (language === "java") {
+            // Extract public class name or use Main
+            const classMatch = code.match(/public\s+class\s+(\w+)/);
+            const className = classMatch ? classMatch[1] : "Main";
+            const srcFile = path.join(tmpDir, `${className}.java`);
+            fs.writeFileSync(srcFile, code);
+
+            const compileResult = await spawnWithTimeout(config.compiler, [srcFile], { cwd: tmpDir }, timeoutMs);
+            if (compileResult.exitCode !== 0) {
+                return { stdout: "", stderr: `Compilation Error:\n${compileResult.stderr}`, exitCode: 1, timedOut: false };
+            }
+            return await spawnWithTimeout(config.runner, ["-cp", tmpDir, className], { cwd: tmpDir, input }, timeoutMs);
+        }
+
+        if (config.compile) {
+            const srcFile = path.join(tmpDir, `solution${config.ext}`);
+            const outFile = path.join(tmpDir, `solution${config.outExt}`);
+            fs.writeFileSync(srcFile, code);
+
+            const compileResult = await spawnWithTimeout(config.compiler, [srcFile, "-o", outFile], { cwd: tmpDir }, timeoutMs);
+            if (compileResult.exitCode !== 0) {
+                return { stdout: "", stderr: `Compilation Error:\n${compileResult.stderr}`, exitCode: 1, timedOut: false };
+            }
+            return await spawnWithTimeout(outFile, [], { cwd: tmpDir, input }, timeoutMs);
+        }
+
+        // Interpreted languages
+        const srcFile = path.join(tmpDir, `solution${config.ext}`);
+        fs.writeFileSync(srcFile, code);
+
+        const cmdArgs = [...(config.args || []), srcFile];
+        return await spawnWithTimeout(config.cmd, cmdArgs, { cwd: tmpDir, input }, timeoutMs);
+    } finally {
+        cleanupDir(tmpDir);
+    }
 };
 
 /**
- * Execute code via the Piston API.
- * POST /api/v2/piston/execute
- * { language, version, files: [{ content }], stdin, run_timeout }
- * Returns { run: { stdout, stderr, code, signal, output }, compile?: { ... } }
+ * Run code with a single input and return the result.
  */
 const runCode = async (code, language, input = "", timeoutMs = TIMEOUT_MS) => {
     if (!code || !language) {
         return { stdout: "", stderr: "No code or language provided", exitCode: 1, timedOut: false };
     }
-
-    const pistonLang = PISTON_LANGUAGE_MAP[language];
-    if (!pistonLang) {
-        return { stdout: "", stderr: `Unsupported language: ${language}`, exitCode: 1, timedOut: false };
-    }
-
-    try {
-        const response = await fetch(`${PISTON_API_URL}/execute`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                language: pistonLang.language,
-                version: pistonLang.version,
-                files: [{ content: code }],
-                stdin: input,
-                run_timeout: timeoutMs
-            }),
-            signal: AbortSignal.timeout(Math.max(timeoutMs + 5000, 30000))
-        });
-
-        if (!response.ok) {
-            const text = await response.text().catch(() => "");
-            return { stdout: "", stderr: `Piston API error (${response.status}): ${text}`, exitCode: 1, timedOut: false };
-        }
-
-        const data = await response.json();
-
-        // Handle compilation errors (for compiled languages)
-        if (data.compile && data.compile.code !== 0 && data.compile.stderr) {
-            return {
-                stdout: "",
-                stderr: `Compilation Error:\n${data.compile.stderr}`,
-                exitCode: 1,
-                timedOut: false
-            };
-        }
-
-        const run = data.run || {};
-        const timedOut = run.signal === "SIGKILL" || run.signal === "SIGXCPU";
-
-        return {
-            stdout: String(run.stdout || ""),
-            stderr: String(run.stderr || ""),
-            exitCode: run.code != null ? run.code : 1,
-            timedOut
-        };
-    } catch (err) {
-        if (err.name === "TimeoutError" || err.name === "AbortError") {
-            return { stdout: "", stderr: "Execution timed out", exitCode: 1, timedOut: true };
-        }
-        return { stdout: "", stderr: `Code execution failed: ${err.message}`, exitCode: 1, timedOut: false };
-    }
+    return compileAndRun(code, language, input, timeoutMs);
 };
 
 /**
