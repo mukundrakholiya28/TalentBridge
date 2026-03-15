@@ -332,10 +332,8 @@ The backend is configured for deployment on [Render](https://render.com) via `re
 - **Start:** `node server.js`
 - Set environment variables (`MONGODB_URI`, `JWT_SECRET`, `GOOGLE_CLIENT_ID`, `GEMINI_API_KEY`) in the Render dashboard.
 
-### Frontend — Vercel / Netlify
-The frontend supports deployment on both platforms:
-- **Vercel:** Configured via `vercel.json` with SPA rewrites.
-- **Netlify:** Configured via `netlify.toml` with build settings and `_redirects` for SPA routing.
+### Frontend — Vercel
+Deployed on Vercel, configured via `vercel.json` with SPA rewrites.
 
 ---
 
