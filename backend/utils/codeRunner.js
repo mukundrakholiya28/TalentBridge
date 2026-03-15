@@ -1,72 +1,115 @@
-const PISTON_API_URL = process.env.PISTON_API_URL || "https://emkc.org/api/v2/piston";
-const TIMEOUT_MS = 10000;
+const HE_API_URL = "https://api.hackerearth.com/v4/partner/code-evaluation/submissions/";
+const HE_CLIENT_SECRET = process.env.HE_CLIENT_SECRET;
+const TIMEOUT_MS = 15000;
+const POLL_INTERVAL_MS = 2000;
+const POLL_MAX_ATTEMPTS = 15;
 
-// Map app language names → Piston language identifiers and versions
-const PISTON_LANGUAGE_MAP = {
-    javascript: { language: "javascript", version: "18.15.0" },
-    python:     { language: "python",     version: "3.10.0"  },
-    typescript: { language: "typescript", version: "5.0.3"   },
-    java:       { language: "java",       version: "15.0.2"  },
-    cpp:        { language: "c++",        version: "10.2.0"  },
-    c:          { language: "c",          version: "10.2.0"  },
-    go:         { language: "go",         version: "1.16.2"  }
+// Map app language names → HackerEarth language codes
+const HE_LANGUAGE_MAP = {
+    javascript: "JAVASCRIPT_NODE",
+    python:     "PYTHON3",
+    typescript: "TYPESCRIPT",
+    java:       "JAVA8",
+    cpp:        "CPP17",
+    c:          "C",
+    go:         "GO"
 };
 
 /**
- * Execute code via the Piston API.
- * POST /api/v2/piston/execute
- * { language, version, files: [{ content }], stdin, run_timeout }
- * Returns { run: { stdout, stderr, code, signal, output }, compile?: { ... } }
+ * Execute code via the HackerEarth Code Evaluation API.
+ * POST /v4/partner/code-evaluation/submissions/ → poll status_update_url until done.
  */
 const runCode = async (code, language, input = "", timeoutMs = TIMEOUT_MS) => {
     if (!code || !language) {
         return { stdout: "", stderr: "No code or language provided", exitCode: 1, timedOut: false };
     }
 
-    const pistonLang = PISTON_LANGUAGE_MAP[language];
-    if (!pistonLang) {
+    const heLang = HE_LANGUAGE_MAP[language];
+    if (!heLang) {
         return { stdout: "", stderr: `Unsupported language: ${language}`, exitCode: 1, timedOut: false };
     }
 
+    if (!HE_CLIENT_SECRET) {
+        return { stdout: "", stderr: "HackerEarth client secret not configured", exitCode: 1, timedOut: false };
+    }
+
     try {
-        const response = await fetch(`${PISTON_API_URL}/execute`, {
+        // Step 1: Submit code
+        const submitRes = await fetch(HE_API_URL, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: {
+                "Content-Type": "application/json",
+                "client-secret": HE_CLIENT_SECRET
+            },
             body: JSON.stringify({
-                language: pistonLang.language,
-                version: pistonLang.version,
-                files: [{ content: code }],
-                stdin: input,
-                run_timeout: timeoutMs
+                lang: heLang,
+                source: code,
+                input: input || "",
+                time_limit: Math.ceil(timeoutMs / 1000),
+                memory_limit: 262144
             }),
-            signal: AbortSignal.timeout(Math.max(timeoutMs + 5000, 30000))
+            signal: AbortSignal.timeout(30000)
         });
 
-        if (!response.ok) {
-            const text = await response.text().catch(() => "");
-            return { stdout: "", stderr: `Piston API error (${response.status}): ${text}`, exitCode: 1, timedOut: false };
+        if (!submitRes.ok) {
+            const text = await submitRes.text().catch(() => "");
+            return { stdout: "", stderr: `HackerEarth API error (${submitRes.status}): ${text}`, exitCode: 1, timedOut: false };
         }
 
-        const data = await response.json();
-
-        // Handle compilation errors (for compiled languages)
-        if (data.compile && data.compile.code !== 0 && data.compile.stderr) {
-            return {
-                stdout: "",
-                stderr: `Compilation Error:\n${data.compile.stderr}`,
-                exitCode: 1,
-                timedOut: false
-            };
+        const submitData = await submitRes.json();
+        const statusUrl = submitData.status_update_url;
+        if (!statusUrl) {
+            return { stdout: "", stderr: "HackerEarth did not return a status URL", exitCode: 1, timedOut: false };
         }
 
-        const run = data.run || {};
-        const timedOut = run.signal === "SIGKILL" || run.signal === "SIGXCPU";
+        // Step 2: Poll until execution is complete
+        let runStatus = null;
+        for (let attempt = 0; attempt < POLL_MAX_ATTEMPTS; attempt++) {
+            await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
+
+            const pollRes = await fetch(statusUrl, {
+                headers: { "client-secret": HE_CLIENT_SECRET },
+                signal: AbortSignal.timeout(15000)
+            });
+
+            if (!pollRes.ok) continue;
+
+            const pollData = await pollRes.json();
+            const status = pollData?.result?.run_status?.status;
+
+            if (status && status !== "NA") {
+                runStatus = pollData.result.run_status;
+                break;
+            }
+        }
+
+        if (!runStatus) {
+            return { stdout: "", stderr: "Execution timed out waiting for result", exitCode: 1, timedOut: true };
+        }
+
+        // Step 3: Map HackerEarth status to our format
+        const status = runStatus.status;
+        const stdout = String(runStatus.output || "");
+        const stderr = String(runStatus.stderr || runStatus.compile_message || "");
+
+        if (status === "TLE") {
+            return { stdout: "", stderr: "Time Limit Exceeded", exitCode: 1, timedOut: true };
+        }
+        if (status === "MLE") {
+            return { stdout: "", stderr: "Memory Limit Exceeded", exitCode: 1, timedOut: false };
+        }
+        if (status === "CE") {
+            return { stdout: "", stderr: `Compilation Error:\n${stderr}`, exitCode: 1, timedOut: false };
+        }
+        if (status === "RE" || status === "OLE") {
+            return { stdout: "", stderr: stderr || "Runtime Error", exitCode: 1, timedOut: false };
+        }
 
         return {
-            stdout: String(run.stdout || ""),
-            stderr: String(run.stderr || ""),
-            exitCode: run.code != null ? run.code : 1,
-            timedOut
+            stdout,
+            stderr,
+            exitCode: status === "AC" || status === "NA" ? 0 : 1,
+            timedOut: false
         };
     } catch (err) {
         if (err.name === "TimeoutError" || err.name === "AbortError") {
