@@ -358,7 +358,7 @@ const submitAssessment = async (req, res) => {
                     status: "submitted"
                 }
             },
-            { new: true, upsert: true }
+            { returnDocument: 'after', upsert: true }
         );
 
         const application = await Application.findById(assessment.applicationId);
@@ -408,7 +408,7 @@ const logProctorEvent = async (req, res) => {
                 $inc: { tabSwitchCount: type === "tab-switch" ? 1 : 0 },
                 $push: { proctorEvents: { type, details, timestamp: new Date() } }
             },
-            { new: true, upsert: true }
+            { returnDocument: 'after', upsert: true }
         );
 
         return res.json({ success: true, attempt });
@@ -439,7 +439,7 @@ const logCodeSnapshot = async (req, res) => {
             {
                 $push: { codeSnapshots: { code, questionIndex, timestamp: new Date() } }
             },
-            { new: true, upsert: true }
+            { returnDocument: 'after', upsert: true }
         );
 
         if (attempt?.codeSnapshots?.length > 100) {

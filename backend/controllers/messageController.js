@@ -147,7 +147,7 @@ const markMessageRead = async (req, res) => {
         const message = await Message.findOneAndUpdate(
             { _id: messageId, receiverId: userId },
             { isRead: true },
-            { new: true }
+            { returnDocument: 'after' }
         );
 
         if (!message) {
