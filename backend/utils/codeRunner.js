@@ -1,4 +1,4 @@
-const PISTON_API_URL = process.env.PISTON_API_URL || "https://emkc.run/api/v2/piston";
+const PISTON_API_URL = process.env.PISTON_API_URL || "https://emkc.org/api/v2/piston";
 const TIMEOUT_MS = 10000;
 
 // Map app language names → Piston language identifiers and versions
