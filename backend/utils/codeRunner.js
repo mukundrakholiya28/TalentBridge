@@ -2,7 +2,7 @@ const HE_API_URL = "https://api.hackerearth.com/v4/partner/code-evaluation/submi
 const HE_CLIENT_SECRET = process.env.HE_CLIENT_SECRET;
 const TIMEOUT_MS = 15000;
 const POLL_INTERVAL_MS = 2000;
-const POLL_MAX_ATTEMPTS = 15;
+const POLL_MAX_ATTEMPTS = 45;
 
 // Map app language names → HackerEarth language codes
 const HE_LANGUAGE_MAP = {
@@ -14,6 +14,15 @@ const HE_LANGUAGE_MAP = {
     c:          "C",
     go:         "GO"
 };
+
+const NON_TERMINAL_STATUSES = new Set([
+    "NA",
+    "PENDING",
+    "QUEUED",
+    "IN-QUEUE",
+    "PROCESSING",
+    "RUNNING"
+]);
 
 const isHttpUrl = (value) => {
     if (!value) return false;
@@ -95,9 +104,9 @@ const runCode = async (code, language, input = "", timeoutMs = TIMEOUT_MS) => {
             if (!pollRes.ok) continue;
 
             const pollData = await pollRes.json();
-            const status = pollData?.result?.run_status?.status;
+            const status = String(pollData?.result?.run_status?.status || "").toUpperCase();
 
-            if (status && status !== "NA") {
+            if (status && !NON_TERMINAL_STATUSES.has(status)) {
                 runStatus = pollData.result.run_status;
                 break;
             }
