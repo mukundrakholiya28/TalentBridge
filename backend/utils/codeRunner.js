@@ -15,6 +15,26 @@ const HE_LANGUAGE_MAP = {
     go:         "GO"
 };
 
+const isHttpUrl = (value) => {
+    if (!value) return false;
+    const str = String(value).trim();
+    return str.startsWith("http://") || str.startsWith("https://");
+};
+
+const resolveRemoteOutput = async (value) => {
+    const raw = String(value || "");
+    if (!isHttpUrl(raw)) return raw;
+
+    try {
+        const response = await fetch(raw, { signal: AbortSignal.timeout(15000) });
+        if (!response.ok) return raw;
+        return await response.text();
+    } catch {
+        // Fallback to the raw value if remote output fetch fails.
+        return raw;
+    }
+};
+
 /**
  * Execute code via the HackerEarth Code Evaluation API.
  * POST /v4/partner/code-evaluation/submissions/ → poll status_update_url until done.
@@ -89,8 +109,8 @@ const runCode = async (code, language, input = "", timeoutMs = TIMEOUT_MS) => {
 
         // Step 3: Map HackerEarth status to our format
         const status = runStatus.status;
-        const stdout = String(runStatus.output || "");
-        const stderr = String(runStatus.stderr || runStatus.compile_message || "");
+        const stdout = await resolveRemoteOutput(runStatus.output || "");
+        const stderr = await resolveRemoteOutput(runStatus.stderr || runStatus.compile_message || "");
 
         if (status === "TLE") {
             return { stdout: "", stderr: "Time Limit Exceeded", exitCode: 1, timedOut: true };
