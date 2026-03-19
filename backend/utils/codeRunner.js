@@ -3,6 +3,9 @@ const HE_CLIENT_SECRET = process.env.HE_CLIENT_SECRET;
 const TIMEOUT_MS = 15000;
 const POLL_INTERVAL_MS = 2000;
 const POLL_MAX_ATTEMPTS = 45;
+const POLL_REQUEST_TIMEOUT_MS = 5000;
+const POLL_TOTAL_TIMEOUT_MS = 90000;
+const OUTPUT_FETCH_TIMEOUT_MS = 5000;
 
 // Map app language names → HackerEarth language codes
 const HE_LANGUAGE_MAP = {
@@ -35,7 +38,7 @@ const resolveRemoteOutput = async (value) => {
     if (!isHttpUrl(raw)) return raw;
 
     try {
-        const response = await fetch(raw, { signal: AbortSignal.timeout(15000) });
+        const response = await fetch(raw, { signal: AbortSignal.timeout(OUTPUT_FETCH_TIMEOUT_MS) });
         if (!response.ok) return raw;
         return await response.text();
     } catch {
@@ -93,22 +96,29 @@ const runCode = async (code, language, input = "", timeoutMs = TIMEOUT_MS) => {
 
         // Step 2: Poll until execution is complete
         let runStatus = null;
-        for (let attempt = 0; attempt < POLL_MAX_ATTEMPTS; attempt++) {
-            await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
+        const pollDeadline = Date.now() + POLL_TOTAL_TIMEOUT_MS;
+        for (let attempt = 0; attempt < POLL_MAX_ATTEMPTS && Date.now() < pollDeadline; attempt++) {
+            try {
+                const pollRes = await fetch(statusUrl, {
+                    headers: { "client-secret": HE_CLIENT_SECRET },
+                    signal: AbortSignal.timeout(POLL_REQUEST_TIMEOUT_MS)
+                });
 
-            const pollRes = await fetch(statusUrl, {
-                headers: { "client-secret": HE_CLIENT_SECRET },
-                signal: AbortSignal.timeout(15000)
-            });
+                if (pollRes.ok) {
+                    const pollData = await pollRes.json();
+                    const status = String(pollData?.result?.run_status?.status || "").toUpperCase();
 
-            if (!pollRes.ok) continue;
+                    if (status && !NON_TERMINAL_STATUSES.has(status)) {
+                        runStatus = pollData.result.run_status;
+                        break;
+                    }
+                }
+            } catch {
+                // Ignore transient polling failures and keep polling until deadline.
+            }
 
-            const pollData = await pollRes.json();
-            const status = String(pollData?.result?.run_status?.status || "").toUpperCase();
-
-            if (status && !NON_TERMINAL_STATUSES.has(status)) {
-                runStatus = pollData.result.run_status;
-                break;
+            if (attempt < POLL_MAX_ATTEMPTS - 1 && Date.now() < pollDeadline) {
+                await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
             }
         }
 
@@ -119,7 +129,10 @@ const runCode = async (code, language, input = "", timeoutMs = TIMEOUT_MS) => {
         // Step 3: Map HackerEarth status to our format
         const status = runStatus.status;
         const stdout = await resolveRemoteOutput(runStatus.output || "");
-        const stderr = await resolveRemoteOutput(runStatus.stderr || runStatus.compile_message || "");
+        let stderr = "";
+        if (status !== "AC") {
+            stderr = await resolveRemoteOutput(runStatus.stderr || runStatus.compile_message || "");
+        }
 
         if (status === "TLE") {
             return { stdout: "", stderr: "Time Limit Exceeded", exitCode: 1, timedOut: true };
