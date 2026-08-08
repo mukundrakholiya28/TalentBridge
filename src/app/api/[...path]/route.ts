@@ -217,8 +217,24 @@ async function handler(
       mockReq.url = url;
       mockReq.originalUrl = url;
       mockReq.headers = headers;
-      mockReq.socket = { remoteAddress: "127.0.0.1" };
-      mockReq.connection = {};
+      
+      // Create a more complete mock socket with all necessary methods
+      mockReq.socket = {
+        remoteAddress: "127.0.0.1",
+        destroy: () => {
+          console.log('[API Route] Socket destroy called');
+        },
+        end: () => {
+          console.log('[API Route] Socket end called');
+        },
+        setTimeout: () => {},
+        setKeepAlive: () => {},
+        setNoDelay: () => {},
+        ref: () => {},
+        unref: () => {}
+      };
+      
+      mockReq.connection = mockReq.socket;
       
       // For file uploads, ensure proper content-length
       if (bodyBuf.length > 0 && headers['content-type']?.includes('multipart/form-data')) {
