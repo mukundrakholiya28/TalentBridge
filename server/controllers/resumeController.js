@@ -251,26 +251,51 @@ const uploadResume = async (req, res) => {
         }
 
         const { user, candidate } = context;
+        console.log('[Resume Upload] Context retrieved successfully');
+        console.log('[Resume Upload] File size:', req.file.size, 'bytes');
+        console.log('[Resume Upload] File mimetype:', req.file.mimetype);
+        
         let pdfData = "";
         try {
+            console.log('[Resume Upload] Parsing PDF buffer...');
             pdfData = await parsePdfBuffer(req.file.buffer);
+            console.log('[Resume Upload] PDF parsed successfully');
         } catch (pdfErr) {
-            console.warn("PDF parsing failed:", pdfErr.message);
+            console.error("[Resume Upload] PDF parsing failed:", pdfErr.message);
+            console.log('[Resume Upload] Using raw buffer fallback');
             pdfData = { text: req.file.buffer.toString("utf-8").replace(/[^\x20-\x7E\n\r\t]/g, " ") };
         }
 
         const rawText = String(extractPdfText(pdfData) || "");
+        console.log('[Resume Upload] Extracted text length:', rawText.length, 'characters');
+        
+        if (rawText.length < 50) {
+            console.warn('[Resume Upload] Warning: Very short resume text extracted');
+        }
+        
         const formattedText = buildFormattedText(rawText);
         const cleanedText = cleanText(rawText) || "Resume Content";
 
         let structuredData = {};
-        try {
-            console.log('[Resume Upload] Starting AI analysis with Gemini...');
-            structuredData = await analyzeResume(formattedText || cleanedText, PROFILE_REQUIREMENTS);
-            console.log('[Resume Upload] AI analysis completed successfully');
-        } catch (err) {
-            console.error("AI resume analysis failed:", err.message, err.stack);
-            console.log('[Resume Upload] Using fallback extraction');
+        let useAI = false;
+        
+        // Only attempt AI analysis if GEMINI_API_KEY is configured
+        if (process.env.GEMINI_API_KEY) {
+            try {
+                console.log('[Resume Upload] Starting AI analysis with Gemini...');
+                structuredData = await analyzeResume(formattedText || cleanedText, PROFILE_REQUIREMENTS);
+                console.log('[Resume Upload] AI analysis completed successfully');
+                useAI = true;
+            } catch (err) {
+                console.error("AI resume analysis failed:", err.message);
+                console.log('[Resume Upload] Falling back to regex extraction');
+            }
+        } else {
+            console.warn('[Resume Upload] GEMINI_API_KEY not configured, using fallback extraction');
+        }
+        
+        // If AI failed or wasn't attempted, use fallback
+        if (!useAI) {
             structuredData = fallbackExtract(formattedText || cleanedText);
         }
 
@@ -289,10 +314,16 @@ const uploadResume = async (req, res) => {
         }
 
         let embedding = [];
-        try {
-            embedding = await createEmbedding(cleanedText);
-        } catch (err) {
-            console.warn("Resume embedding failed:", err.message);
+        if (cleanedText && cleanedText.length > 10) {
+            try {
+                embedding = await createEmbedding(cleanedText);
+                console.log('[Resume Upload] Embedding created successfully');
+            } catch (err) {
+                console.warn("Resume embedding creation failed (non-critical):", err.message);
+                // Continue without embedding - it's not critical for basic functionality
+            }
+        } else {
+            console.warn('[Resume Upload] Text too short for embedding, skipping');
         }
 
         const mergedSkills = safeSkills([
@@ -355,6 +386,7 @@ const uploadResume = async (req, res) => {
             console.warn("User save warning:", userSaveErr.message);
         }
 
+        // Process chunks in background (non-blocking, don't fail the upload if this fails)
         try {
             const targetCandidateId = candidate.id || candidate._id;
             await ResumeChunk.deleteMany({ candidateId: targetCandidateId });
@@ -379,30 +411,37 @@ const uploadResume = async (req, res) => {
                 try {
                     chunkEmbedding = await createEmbedding(chunkText);
                 } catch (err) {
-                    console.warn("Chunk embedding failed:", err.message);
+                    console.warn("Chunk embedding failed (non-critical):", err.message);
                 }
 
-                await ResumeChunk.create({
-                    candidateId: targetCandidateId,
-                    text: chunkText,
-                    type: chunk.type,
-                    embedding: chunkEmbedding
-                });
+                try {
+                    await ResumeChunk.create({
+                        candidateId: targetCandidateId,
+                        text: chunkText,
+                        type: chunk.type,
+                        embedding: chunkEmbedding
+                    });
+                } catch (err) {
+                    console.warn("Chunk creation failed (non-critical):", err.message);
+                }
             }
         } catch (chunkErr) {
-            console.warn("Resume chunk processing warning:", chunkErr.message);
+            console.warn("Resume chunk processing failed (non-critical):", chunkErr.message);
         }
 
+        console.log('[Resume Upload] Success! Returning candidate profile');
         return res.status(200).json({
             success: true,
-            message: "Resume uploaded and profile updated",
+            message: "Resume uploaded and profile updated successfully",
             candidate
         });
     } catch (error) {
-        console.error("Resume upload error:", error);
+        console.error("[Resume Upload] Critical error:", error);
+        console.error("[Resume Upload] Stack trace:", error.stack);
         return res.status(500).json({
             success: false,
-            message: error?.message || "Failed to process resume"
+            message: error?.message || "Failed to process resume. Please try again or contact support.",
+            error: process.env.NODE_ENV === 'development' ? error.message : undefined
         });
     }
 };
