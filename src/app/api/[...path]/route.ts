@@ -175,7 +175,9 @@ async function handler(
         },
 
         locals: {},
-        app: {},
+        app: {
+          get: () => undefined,
+        },
       };
 
       (app as any)(mockReq, mockRes, (err?: any) => {
