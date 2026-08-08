@@ -102,13 +102,14 @@ async function handler(
       const resHeaders: Record<string, string> = {};
       let status = 200;
 
-      const mockReq = Readable.from(bodyBuf) as any;
-      mockReq.method = req.method;
-      mockReq.url = url;
-      mockReq.originalUrl = url;
-      mockReq.headers = headers;
-      mockReq.socket = { remoteAddress: "127.0.0.1" };
-      mockReq.connection = {};
+      const mockReq: any = Object.assign(Readable.from(bodyBuf), {
+        method: req.method,
+        url,
+        originalUrl: url,
+        headers,
+        socket: { remoteAddress: "127.0.0.1" },
+        connection: {},
+      });
 
       const mockRes: any = {
         get statusCode() { return status; },
