@@ -4,6 +4,7 @@
   "framework": "nextjs",
   "functions": {
     "src/app/api/[...path]/route.ts": {
+      "includeFiles": "server/**",
       "maxDuration": 60
     }
   }

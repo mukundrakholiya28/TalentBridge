@@ -29,24 +29,26 @@ async function buildExpressApp(): Promise<ExpressApp> {
   app.use(cors({ origin: "*" }));
   app.use(express.json({ limit: "5mb" }));
 
-  // ── Routes (all require'd at runtime) ───────────────────────────────────
+  // ── Routes (eval-require at runtime so Webpack bypasses ESM errors, traced by outputFileTracingIncludes) ───
   const base = process.cwd() + "/server";
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const reqMod = (modPath: string) => eval("require")(modPath);
 
-  app.use("/api/auth",         require(`${base}/routes/auth`));
-  app.use("/api/jobs",         require(`${base}/routes/jobs`));
-  app.use("/api/applications", require(`${base}/routes/applications`));
-  app.use("/api/messages",     require(`${base}/routes/messages`));
-  app.use("/api/evaluation",   require(`${base}/routes/evaluation`));
-  app.use("/api/rag",          require(`${base}/routes/ragSearch`));
-  app.use("/api/ats",          require(`${base}/routes/ats`));
-  app.use("/api/resume",       require(`${base}/routes/resume`));
-  app.use("/api/offers",       require(`${base}/routes/offers`));
-  app.use("/api/oa",           require(`${base}/routes/oa`));
-  app.use("/api/candidate",    require(`${base}/routes/candidate`));
-  app.use("/api/recruiter",    require(`${base}/routes/recruiter`));
+  app.use("/api/auth",         reqMod(`${base}/routes/auth`));
+  app.use("/api/jobs",         reqMod(`${base}/routes/jobs`));
+  app.use("/api/applications", reqMod(`${base}/routes/applications`));
+  app.use("/api/messages",     reqMod(`${base}/routes/messages`));
+  app.use("/api/evaluation",   reqMod(`${base}/routes/evaluation`));
+  app.use("/api/rag",          reqMod(`${base}/routes/ragSearch`));
+  app.use("/api/ats",          reqMod(`${base}/routes/ats`));
+  app.use("/api/resume",       reqMod(`${base}/routes/resume`));
+  app.use("/api/offers",       reqMod(`${base}/routes/offers`));
+  app.use("/api/oa",           reqMod(`${base}/routes/oa`));
+  app.use("/api/candidate",    reqMod(`${base}/routes/candidate`));
+  app.use("/api/recruiter",    reqMod(`${base}/routes/recruiter`));
 
-  const authMiddleware             = require(`${base}/middleware/authMiddleware`);
-  const { uploadResume }           = require(`${base}/controllers/resumeController`);
+  const authMiddleware             = reqMod(`${base}/middleware/authMiddleware`);
+  const { uploadResume }           = reqMod(`${base}/controllers/resumeController`);
 
   const upload = multer({
     storage: multer.memoryStorage(),

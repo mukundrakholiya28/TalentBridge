@@ -8,6 +8,11 @@ const __dirname  = path.dirname(__filename);
 const nextConfig = {
   reactStrictMode: false,
 
+  outputFileTracingIncludes: {
+    '/api/**/*': ['./server/**/*'],
+    '/api': ['./server/**/*'],
+  },
+
   // These packages are require()'d at runtime inside the API route handler.
   // Listing them here tells Next.js NOT to bundle them with webpack —
   // they are loaded directly from node_modules by Node.js at request time.
