@@ -1,74 +1,74 @@
-if (typeof globalThis.DOMMatrix === "undefined") {
-  class DOMMatrix {}
-  class DOMMatrixReadOnly {}
-  class DOMPoint {}
-  class DOMRect {}
-  globalThis.DOMMatrix = DOMMatrix;
-  globalThis.DOMMatrixReadOnly = DOMMatrixReadOnly;
-  globalThis.DOMPoint = DOMPoint;
-  globalThis.DOMRect = DOMRect;
-}
-
-const pdfParseLib = require("pdf-parse");
-
+const { GoogleGenerativeAI } = require("@google/generative-ai");
 const Candidate = require("../models/Candidate");
-const ResumeChunk = require("../models/ResumeChunk");
 const User = require("../models/User");
 
-const { createEmbedding } = require("../utils/embedding");
-const { analyzeResume } = require("../utils/resumeAnalyzer");
-const { chunkResume } = require("../utils/resumeChunker");
+// ─── Gemini Setup ────────────────────────────────────────────────────────────
 
-const cleanText = (text = "") => text.replace(/\s+/g, " ").trim();
+const GEMINI_MODELS = [
+    process.env.GEMINI_MODEL,
+    "gemini-3.6-flash",
+    "gemini-3.5-flash",
+    "gemini-2.5-flash"
+].filter(Boolean);
 
-const normalizeLines = (text = "") =>
-    String(text || "")
-        .replace(/\r/g, "")
-        .split("\n")
-        .map((line) => line.trim())
-        .filter(Boolean);
+const RESUME_PROMPT = `You are a resume parser. Extract all profile details from this resume PDF.
 
-const parsePdfBuffer = async (buffer) => {
-    try {
-        const legacyFn =
-            typeof pdfParseLib === "function"
-                ? pdfParseLib
-                : (typeof pdfParseLib.default === "function" ? pdfParseLib.default : null);
+Return ONLY a valid JSON object (no markdown, no explanation) with this exact structure:
 
-        if (legacyFn) {
-            return await legacyFn(buffer);
-        }
-
-        if (typeof pdfParseLib.PDFParse === "function") {
-            const parser = new pdfParseLib.PDFParse({ data: buffer });
-            try {
-                return await parser.getText();
-            } finally {
-                await parser.destroy().catch(() => {});
-            }
-        }
-    } catch (err) {
-        console.warn("pdf-parse library error, falling back to raw buffer text:", err.message);
+{
+  "name": "Full Name",
+  "email": "email@example.com",
+  "phone": "+1 234 567 8900",
+  "githubUrl": "https://github.com/username",
+  "linkedinUrl": "https://linkedin.com/in/username",
+  "title": "Professional Title / Current Role",
+  "location": "City, Country",
+  "technicalSkills": ["Skill1", "Skill2", "Skill3"],
+  "experience": [
+    {
+      "title": "Job Title",
+      "company": "Company Name",
+      "period": "Start - End",
+      "description": "One-line summary of the role"
     }
+  ],
+  "education": [
+    {
+      "degree": "Degree Name / Branch",
+      "institution": "University / College Name",
+      "year": "Year or Period"
+    }
+  ],
+  "projects": [
+    {
+      "name": "Project Name",
+      "description": "One-line description of the project"
+    }
+  ],
+  "extraCurricular": ["Activity or achievement 1", "Activity or achievement 2"],
+  "summary": "A 2-3 sentence professional summary"
+}
 
-    const rawStr = buffer.toString("utf-8").replace(/[^\x20-\x7E\n\r\t]/g, " ");
-    return { text: rawStr };
-};
+Rules:
+- Extract ALL available information from the resume.
+- Keep experience descriptions and project descriptions to ONE concise line each.
+- Use full URLs for links when available.
+- Only list skills that are explicitly mentioned in the resume.
+- Use empty string "" for missing text fields.
+- Use empty array [] for missing list fields.
+- Do NOT invent information not present in the resume.`;
 
-const extractPdfText = (pdfData) => {
-    if (typeof pdfData === "string") return pdfData;
-    if (!pdfData || typeof pdfData !== "object") return "";
-    if (typeof pdfData.text === "string") return pdfData.text;
-    if (typeof pdfData.content === "string") return pdfData.content;
-    if (typeof pdfData.data === "string") return pdfData.data;
-    if (typeof pdfData.rawText === "string") return pdfData.rawText;
-    return "";
-};
+// ─── Helpers ─────────────────────────────────────────────────────────────────
 
+/**
+ * Find the candidate context (user + candidate record) from the auth token.
+ * Creates a candidate record if one doesn't exist yet.
+ */
 const getCandidateContext = async (req) => {
     const userId = req.user?.id || req.user?._id || req.user?.userId;
     if (!userId) return { error: { code: 401, message: "Invalid user token" } };
 
+    // Find user by multiple strategies
     let user = await User.findOne({ id: String(userId) });
     if (!user) user = await User.findOne({ _id: String(userId) });
     if (!user && req.user?.email) user = await User.findOne({ email: req.user.email });
@@ -79,6 +79,8 @@ const getCandidateContext = async (req) => {
     }
 
     const effectiveUserId = user.id || user._id || userId;
+
+    // Find or create candidate record
     let candidate = await Candidate.findOne({ userId: String(effectiveUserId) });
     if (!candidate) candidate = await Candidate.findOne({ userId: String(user.id) });
 
@@ -105,152 +107,149 @@ const getCandidateContext = async (req) => {
     return { user, candidate };
 };
 
-const safeSkills = (arr) => {
-    if (!Array.isArray(arr)) return [];
-    return [...new Set(arr.map((x) => String(x || "").trim()).filter(Boolean))];
+/**
+ * Send the PDF to Gemini and get a zero-shot JSON profile response.
+ * Tries multiple models in order until one succeeds.
+ */
+const parseResumeWithGemini = async (pdfBuffer, mimeType) => {
+    if (!process.env.GEMINI_API_KEY) {
+        throw new Error("GEMINI_API_KEY is not configured");
+    }
+
+    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+    const pdfBase64 = pdfBuffer.toString("base64");
+
+    for (const modelName of GEMINI_MODELS) {
+        try {
+            console.log(`[Resume] Trying Gemini model: ${modelName}`);
+
+            const model = genAI.getGenerativeModel({
+                model: modelName,
+                generationConfig: {
+                    responseMimeType: "application/json",
+                    temperature: 0.1
+                }
+            });
+
+            const result = await model.generateContent([
+                {
+                    inlineData: {
+                        mimeType: mimeType || "application/pdf",
+                        data: pdfBase64
+                    }
+                },
+                { text: RESUME_PROMPT }
+            ]);
+
+            const response = await result.response;
+            const text = response.text();
+
+            if (!text) {
+                console.warn(`[Resume] Empty response from ${modelName}`);
+                continue;
+            }
+
+            // Clean any accidental markdown fencing and parse JSON
+            const cleaned = text
+                .replace(/^```json\s*/i, "")
+                .replace(/\s*```$/, "")
+                .replace(/^```\s*/, "")
+                .trim();
+
+            const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
+            if (!jsonMatch) {
+                console.warn(`[Resume] No JSON object found in ${modelName} response`);
+                continue;
+            }
+
+            const parsed = JSON.parse(jsonMatch[0]);
+            console.log(`[Resume] ✅ Successfully parsed profile from ${modelName} for: ${parsed.name || "unknown"}`);
+            return parsed;
+
+        } catch (err) {
+            console.warn(`[Resume] Model ${modelName} failed: ${err.message}`);
+        }
+    }
+
+    throw new Error("All Gemini models failed to parse the resume");
 };
 
+/**
+ * Deduplicate and clean a skills array.
+ */
+const cleanSkills = (arr) => {
+    if (!Array.isArray(arr)) return [];
+    return [...new Set(
+        arr.map(s => String(s || "").trim()).filter(Boolean)
+    )];
+};
+
+// ─── Route Handlers ──────────────────────────────────────────────────────────
+
+/**
+ * POST /api/upload-resume
+ * Upload a PDF resume → Gemini parses it → saves to candidate & user profile.
+ */
 const uploadResume = async (req, res) => {
-    console.log('[Resume Upload] ========== NEW UPLOAD REQUEST ==========');
+    console.log("[Resume] ========== NEW UPLOAD REQUEST ==========");
     try {
+        // 1. Validate file
         if (!req.file) {
-            console.error('[Resume Upload] ERROR: No file in request');
             return res.status(400).json({ success: false, message: "Resume file is required" });
         }
+        console.log(`[Resume] File: ${req.file.originalname} (${req.file.size} bytes)`);
 
-        console.log('[Resume Upload] File size:', req.file.size, 'bytes');
-        console.log('[Resume Upload] Getting candidate context...');
+        // 2. Get candidate context
         const context = await getCandidateContext(req);
         if (context.error) {
-            console.error('[Resume Upload] ERROR: Context error:', context.error);
             return res.status(context.error.code).json({ success: false, message: context.error.message });
         }
-
         const { user, candidate } = context;
-        if (!user || !candidate) {
-            return res.status(404).json({ success: false, message: "User or candidate not found" });
-        }
 
-        let structuredData = {};
+        // 3. Send to Gemini for zero-shot JSON extraction
+        const parsed = await parseResumeWithGemini(req.file.buffer, req.file.mimetype);
 
-        if (process.env.GEMINI_API_KEY) {
-            const modelsToTry = [
-                process.env.GEMINI_MODEL,
-                "gemini-2.0-flash",
-                "gemini-1.5-flash",
-                "gemini-1.5-pro"
-            ].filter(Boolean);
-
-            const pdfBase64 = req.file.buffer.toString('base64');
-            const { GoogleGenerativeAI } = require("@google/generative-ai");
-            const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-
-            const prompt = `Extract profile details from this resume PDF.
-Return ONLY a valid zero-shot JSON object matching this exact structure:
-
-{
-  "name": "Candidate Full Name",
-  "email": "Email Address",
-  "phone": "Phone Number",
-  "githubUrl": "GitHub Profile URL",
-  "linkedinUrl": "LinkedIn Profile URL",
-  "technicalSkills": ["Skill 1", "Skill 2"],
-  "experience": [{"title": "Role Title", "company": "Company Name", "period": "Duration", "description": "One line summary"}],
-  "education": [{"degree": "Degree/Branch", "institution": "College/University", "year": "Year/Period"}],
-  "projects": [{"name": "Project Name", "description": "One line description"}],
-  "extraCurricular": ["Activity/Achievement 1"],
-  "summary": "Professional summary paragraph"
-}
-
-Fill all available details. Use empty strings or empty arrays for missing fields. Do not include markdown text.`;
-
-            for (const modelName of modelsToTry) {
-                try {
-                    console.log(`[Resume Upload] Requesting zero-shot JSON from Gemini model: ${modelName}...`);
-                    const model = genAI.getGenerativeModel({
-                        model: modelName,
-                        generationConfig: {
-                            responseMimeType: "application/json",
-                            temperature: 0.1
-                        }
-                    });
-
-                    const result = await model.generateContent([
-                        {
-                            inlineData: {
-                                mimeType: req.file.mimetype || "application/pdf",
-                                data: pdfBase64
-                            }
-                        },
-                        { text: prompt }
-                    ]);
-
-                    const response = await result.response;
-                    const text = response.text();
-                    console.log(`[Resume Upload] Gemini (${modelName}) response length:`, text?.length);
-
-                    if (text) {
-                        const jsonText = text.replace(/^```json\s*/i, '').replace(/\s*```$/, '').replace(/^```\s*/, '').replace(/\s*```$/, '').trim();
-                        const jsonMatch = jsonText.match(/\{[\s\S]*\}/);
-                        if (jsonMatch) {
-                            structuredData = JSON.parse(jsonMatch[0]);
-                            console.log('[Resume Upload] Successfully extracted zero-shot JSON profile for:', structuredData.name || 'Candidate');
-                            break;
-                        }
-                    }
-                } catch (geminiModelErr) {
-                    console.warn(`[Resume Upload] Gemini model ${modelName} failed:`, geminiModelErr.message);
-                }
-            }
-        }
-
-        const mergedSkills = safeSkills([
-            ...(candidate.skills || []),
-            ...(structuredData.skills || []),
-            ...(structuredData.technicalSkills || [])
-        ]);
-        const mergedTechnicalSkills = safeSkills([
-            ...(candidate.technicalSkills || []),
-            ...(structuredData.technicalSkills || []),
-            ...mergedSkills
-        ]);
-
-        candidate.name = structuredData.name || candidate.name || user.fullName || "";
+        // 4. Update candidate record with parsed data
+        candidate.name = parsed.name || candidate.name || user.fullName || "";
         candidate.email = user.email || candidate.email || "";
-        candidate.phone = structuredData.phone || candidate.phone || user.phone || "";
-        candidate.githubUrl = structuredData.githubUrl || candidate.githubUrl || user.githubUrl || "";
-        candidate.linkedinUrl = structuredData.linkedinUrl || candidate.linkedinUrl || user.linkedinUrl || "";
-        candidate.technicalSkills = mergedTechnicalSkills;
-        candidate.skills = mergedSkills;
-        candidate.experience = Array.isArray(structuredData.experience) ? structuredData.experience : (candidate.experience || []);
-        candidate.education = Array.isArray(structuredData.education) ? structuredData.education : (candidate.education || []);
-        candidate.projects = Array.isArray(structuredData.projects) ? structuredData.projects : (candidate.projects || []);
-        candidate.extraCurricular = Array.isArray(structuredData.extraCurricular) ? structuredData.extraCurricular : (candidate.extraCurricular || []);
-        candidate.summary = structuredData.summary || candidate.summary || "";
-        candidate.resumeText = structuredData.summary || "Resume uploaded";
+        candidate.phone = parsed.phone || candidate.phone || "";
+        candidate.githubUrl = parsed.githubUrl || candidate.githubUrl || "";
+        candidate.linkedinUrl = parsed.linkedinUrl || candidate.linkedinUrl || "";
+        candidate.title = parsed.title || candidate.title || "";
+        candidate.location = parsed.location || candidate.location || "";
+        candidate.technicalSkills = cleanSkills(parsed.technicalSkills);
+        candidate.skills = cleanSkills(parsed.technicalSkills);
+        candidate.experience = Array.isArray(parsed.experience) ? parsed.experience : (candidate.experience || []);
+        candidate.education = Array.isArray(parsed.education) ? parsed.education : (candidate.education || []);
+        candidate.projects = Array.isArray(parsed.projects) ? parsed.projects : (candidate.projects || []);
+        candidate.extraCurricular = Array.isArray(parsed.extraCurricular) ? parsed.extraCurricular : (candidate.extraCurricular || []);
+        candidate.summary = parsed.summary || candidate.summary || "";
+        candidate.resumeText = parsed.summary || "Resume uploaded";
         candidate.resumePath = req.file.originalname || "";
 
+        // Save candidate
         try {
             if (typeof candidate.save === "function") {
                 await candidate.save();
             } else {
                 await Candidate.findByIdAndUpdate(candidate.id || candidate._id, candidate);
             }
-        } catch (candSaveErr) {
-            console.error("Candidate save error:", candSaveErr.message);
+        } catch (saveErr) {
+            console.error("[Resume] Candidate save error:", saveErr.message);
         }
 
+        // 5. Sync key fields to user record
         user.fullName = candidate.name || user.fullName;
         user.phone = candidate.phone || user.phone;
         user.githubUrl = candidate.githubUrl || user.githubUrl;
         user.linkedinUrl = candidate.linkedinUrl || user.linkedinUrl;
-        user.technicalSkills = candidate.technicalSkills || [];
+        user.technicalSkills = candidate.technicalSkills;
         user.skills = candidate.skills;
         user.bio = candidate.summary || user.bio;
-        user.experience = candidate.experience || [];
-        user.education = candidate.education || [];
-        user.projects = candidate.projects || [];
-        user.extraCurricular = candidate.extraCurricular || [];
+        user.experience = candidate.experience;
+        user.education = candidate.education;
+        user.projects = candidate.projects;
+        user.extraCurricular = candidate.extraCurricular;
         user.resumeUrl = req.file.originalname || user.resumeUrl;
 
         try {
@@ -259,17 +258,20 @@ Fill all available details. Use empty strings or empty arrays for missing fields
             } else {
                 await User.findByIdAndUpdate(user.id || user._id, user);
             }
-        } catch (userSaveErr) {
-            console.warn("User save warning:", userSaveErr.message);
+        } catch (saveErr) {
+            console.warn("[Resume] User save warning:", saveErr.message);
         }
 
+        // 6. Return the updated candidate profile
+        console.log("[Resume] ✅ Upload complete for:", candidate.name);
         return res.status(200).json({
             success: true,
             message: "Resume uploaded and profile updated successfully",
             candidate
         });
+
     } catch (error) {
-        console.error("[Resume Upload] Critical error:", error);
+        console.error("[Resume] Critical error:", error);
         return res.status(500).json({
             success: false,
             message: error?.message || "Failed to process resume. Please try again."
@@ -277,6 +279,10 @@ Fill all available details. Use empty strings or empty arrays for missing fields
     }
 };
 
+/**
+ * GET /api/resume
+ * Get the stored resume text for the current candidate.
+ */
 const getResume = async (req, res) => {
     try {
         const context = await getCandidateContext(req);
@@ -291,11 +297,15 @@ const getResume = async (req, res) => {
 
         return res.status(200).json({ success: true, resume: candidate.resumeText });
     } catch (error) {
-        console.error("Get resume error:", error);
+        console.error("[Resume] Get error:", error);
         return res.status(500).json({ success: false, message: "Failed to retrieve resume" });
     }
 };
 
+/**
+ * DELETE /api/resume
+ * Clear all resume data from the candidate and user records.
+ */
 const deleteResume = async (req, res) => {
     try {
         const context = await getCandidateContext(req);
@@ -304,10 +314,8 @@ const deleteResume = async (req, res) => {
         }
 
         const { user, candidate } = context;
-        try {
-            await ResumeChunk.deleteMany({ candidateId: candidate._id || candidate.id });
-        } catch (err) {}
 
+        // Clear candidate fields
         candidate.resumeText = "";
         candidate.resumePath = "";
         candidate.skills = [];
@@ -317,13 +325,14 @@ const deleteResume = async (req, res) => {
         candidate.projects = [];
         candidate.extraCurricular = [];
         candidate.summary = "";
-        
+
         if (typeof candidate.save === "function") {
             await candidate.save();
         } else {
             await Candidate.findByIdAndUpdate(candidate.id || candidate._id, candidate);
         }
 
+        // Clear user fields
         user.skills = [];
         user.technicalSkills = [];
         user.experience = [];
@@ -345,7 +354,7 @@ const deleteResume = async (req, res) => {
             candidate
         });
     } catch (error) {
-        console.error("Delete resume error:", error);
+        console.error("[Resume] Delete error:", error);
         return res.status(500).json({ success: false, message: "Failed to delete resume" });
     }
 };
