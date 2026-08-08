@@ -237,6 +237,10 @@ const fallbackExtract = (text) => {
 
 const uploadResume = async (req, res) => {
     try {
+        console.log('[Resume Upload] Request received');
+        console.log('[Resume Upload] File present:', !!req.file);
+        console.log('[Resume Upload] User:', req.user?.id || req.user?._id);
+        
         if (!req.file) {
             return res.status(400).json({ success: false, message: "Resume file is required" });
         }
@@ -261,9 +265,12 @@ const uploadResume = async (req, res) => {
 
         let structuredData = {};
         try {
+            console.log('[Resume Upload] Starting AI analysis with Gemini...');
             structuredData = await analyzeResume(formattedText || cleanedText, PROFILE_REQUIREMENTS);
+            console.log('[Resume Upload] AI analysis completed successfully');
         } catch (err) {
-            console.warn("AI resume analysis failed, using fallback extraction:", err.message);
+            console.error("AI resume analysis failed:", err.message, err.stack);
+            console.log('[Resume Upload] Using fallback extraction');
             structuredData = fallbackExtract(formattedText || cleanedText);
         }
 

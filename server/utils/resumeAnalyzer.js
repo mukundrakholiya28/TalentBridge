@@ -186,19 +186,27 @@ const DEFAULT_PROFILE_REQUIREMENTS = [
 const callGeminiForJson = async (prompt) => {
     let lastError = null;
 
+    console.log('[Gemini] Starting model call with candidates:', GEMINI_MODEL_CANDIDATES);
+    
     for (const model of GEMINI_MODEL_CANDIDATES) {
         try {
+            console.log('[Gemini] Trying model:', model);
             const genModel = ai.getGenerativeModel({ model });
             const result = await genModel.generateContent(prompt);
             const response = await result.response;
             const raw = response.text();
+            console.log('[Gemini] Got response, length:', raw?.length || 0);
             const jsonString = extractJsonFromText(raw);
-            return JSON.parse(jsonString);
+            const parsed = JSON.parse(jsonString);
+            console.log('[Gemini] Successfully parsed JSON');
+            return parsed;
         } catch (err) {
+            console.error(`[Gemini] Model ${model} failed:`, err.message);
             lastError = err;
         }
     }
 
+    console.error('[Gemini] All models failed, last error:', lastError?.message);
     throw lastError || new Error("Gemini model call failed");
 };
 
