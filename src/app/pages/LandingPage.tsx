@@ -25,7 +25,7 @@ export function LandingPage() {
 
   const heroSlides = [
     {
-      title: "Find Your Dream Job with CONSOLE | TalentBridge",
+      title: "Find Your Dream Job with TalentBridge",
       description: "TalentBridge is an AI-powered recruitment platform that connects job seekers with top employers. Upload your resume, get AI-matched to roles, track applications, and receive offers — all in one place.",
       primaryButton: {
         text: "Get Started",
@@ -39,7 +39,7 @@ export function LandingPage() {
       imageAlt: "Team collaboration"
     },
     {
-      title: "Hire Top Talent Faster with CONSOLE | TalentBridge",
+      title: "Hire Top Talent Faster with TalentBridge",
       description: "TalentBridge helps recruiters post jobs, evaluate candidates with AI, schedule interviews via Google Calendar, send assessments, and manage offer letters — streamlining the entire hiring pipeline.",
       primaryButton: {
         text: "Start Hiring",
@@ -147,8 +147,8 @@ export function LandingPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center gap-2">
-              <img src={typeof logo === "string" ? logo : (logo as any).src} alt="CONSOLE | TalentBridge" className="w-10 h-10" />
-              <span className="text-xl font-bold text-gray-900 dark:text-white">CONSOLE | TalentBridge</span>
+              <img src={typeof logo === "string" ? logo : (logo as any).src} alt="TalentBridge" className="w-10 h-10" />
+              <span className="text-xl font-bold text-gray-900 dark:text-white">TalentBridge</span>
             </div>
 
             <nav className="hidden md:flex items-center gap-6">
@@ -293,7 +293,7 @@ export function LandingPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-10 md:mb-16">
             <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-4">
-              Why Choose CONSOLE | TalentBridge?
+              Why Choose TalentBridge?
             </h2>
             <p className="text-base sm:text-lg md:text-xl text-gray-600 dark:text-gray-300">
               Experience the future of recruitment with our innovative platform
@@ -400,10 +400,10 @@ export function LandingPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="max-w-3xl mx-auto text-center">
             <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-6">
-              About CONSOLE | TalentBridge
+              About TalentBridge
             </h2>
             <p className="text-base sm:text-lg text-gray-600 dark:text-gray-300 mb-4">
-              <strong>CONSOLE | TalentBridge</strong> is an AI-powered recruitment platform built to
+              <strong>TalentBridge</strong> is an AI-powered recruitment platform built to
               bridge the gap between talented job seekers and the companies that need them.
             </p>
             <p className="text-base sm:text-lg text-gray-600 dark:text-gray-300 mb-4">
@@ -431,8 +431,8 @@ export function LandingPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-8 md:gap-12 mb-12">
             <div>
               <div className="flex items-center gap-2 mb-4">
-                <img src={typeof logo === "string" ? logo : (logo as any).src} alt="CONSOLE | TalentBridge" className="w-6 h-6" />
-                <span className="text-lg font-semibold">CONSOLE | TalentBridge</span>
+                <img src={typeof logo === "string" ? logo : (logo as any).src} alt="TalentBridge" className="w-6 h-6" />
+                <span className="text-lg font-semibold">TalentBridge</span>
               </div>
               <p className="text-gray-400">
                 Revolutionizing recruitment with innovative technology and seamless experiences.
@@ -484,7 +484,7 @@ export function LandingPage() {
           </div>
 
           <div className="border-t border-gray-800 pt-8 text-center text-gray-400">
-            <p>&copy; 2026 CONSOLE | TalentBridge. All rights reserved.</p>
+            <p>&copy; 2026 TalentBridge. All rights reserved.</p>
           </div>
         </div>
       </footer>

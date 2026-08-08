@@ -13,7 +13,7 @@ export function TermsOfService() {
       content: [
         {
           subtitle: "",
-          body: "By accessing or using CONSOLE | TalentBridge (\"TalentBridge\", \"we\", \"our\", or \"us\"), you agree to be bound by these Terms of Service (\"Terms\"). If you do not agree to these Terms, please do not use our platform.\n\nThese Terms apply to all visitors, users, candidates, and recruiters who access or use TalentBridge. By creating an account or using any feature of the platform, you represent that you have read, understood, and agree to these Terms, as well as our Privacy Policy.",
+          body: "By accessing or using TalentBridge (\"TalentBridge\", \"we\", \"our\", or \"us\"), you agree to be bound by these Terms of Service (\"Terms\"). If you do not agree to these Terms, please do not use our platform.\n\nThese Terms apply to all visitors, users, candidates, and recruiters who access or use TalentBridge. By creating an account or using any feature of the platform, you represent that you have read, understood, and agree to these Terms, as well as our Privacy Policy.",
         },
       ],
     },
@@ -239,11 +239,11 @@ export function TermsOfService() {
               <div className="flex items-center gap-2">
                 <img
                   src={typeof logo === "string" ? logo : (logo as any).src}
-                  alt="CONSOLE | TalentBridge"
+                  alt="TalentBridge"
                   className="w-8 h-8"
                 />
                 <span className="text-lg font-bold text-gray-900 dark:text-white hidden sm:block">
-                  CONSOLE | TalentBridge
+                  TalentBridge
                 </span>
               </div>
             </div>
@@ -296,7 +296,7 @@ export function TermsOfService() {
 
         {/* Footer nav */}
         <div className="mt-16 pt-8 border-t border-gray-200 dark:border-gray-700 flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-gray-500 dark:text-gray-400">
-          <span>&copy; 2026 CONSOLE | TalentBridge. All rights reserved.</span>
+          <span>&copy; 2026 TalentBridge. All rights reserved.</span>
           <div className="flex gap-6">
             <button
               onClick={() => navigate("/privacy")}

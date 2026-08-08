@@ -5,21 +5,19 @@ import { Toaster } from "sonner";
 import Script from "next/script";
 
 export const metadata: Metadata = {
-  title: "CONSOLE | TalentBridge",
-  description: "AI-Powered Recruitment Platform — Connect top talent with leading companies using AI-powered job matching, resume analysis, and automated candidate evaluation.",
+  title: "TalentBridge — AI-Powered Recruitment Platform",
+  description: "TalentBridge connects job seekers with employers using AI-powered job matching, resume analysis, semantic candidate search, online assessments, and Google Calendar interview scheduling.",
   icons: {
     icon: "/favicon.png",
   },
   verification: {
-    // Replace this value with your actual Google Search Console verification code
-    // Get it from: https://search.google.com/search-console → Add property → HTML tag
-    google: "QQ7LZ4GmLlkyyxkKxdSiWyzDWFkhoQr6GH9jvifrbhU"
+    google: "QQ7LZ4GmLlkyyxkKxdSiWyzDWFkhoQr6GH9jvifrbhU",
   },
   openGraph: {
-    title: "CONSOLE | TalentBridge",
-    description: "AI-Powered Recruitment Platform — Connect top talent with leading companies.",
+    title: "TalentBridge — AI-Powered Recruitment Platform",
+    description: "TalentBridge connects job seekers with employers using AI-powered matching, resume analysis, and automated hiring tools.",
     url: "https://console-talent-bridge.vercel.app",
-    siteName: "CONSOLE | TalentBridge",
+    siteName: "TalentBridge",
     type: "website",
   },
 };
