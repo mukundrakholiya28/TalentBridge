@@ -175,6 +175,7 @@ async function handler(
     const url = req.nextUrl.pathname + queryStr;
 
     const { Readable } = require("stream");
+    const { EventEmitter } = require("events");
 
     return new Promise<NextResponse>((resolve) => {
       const chunks: Buffer[] = [];
@@ -218,23 +219,36 @@ async function handler(
       mockReq.originalUrl = url;
       mockReq.headers = headers;
       
-      // Create a more complete mock socket with all necessary methods
-      mockReq.socket = {
+      // Create a proper mock socket that extends EventEmitter
+      const mockSocket = new EventEmitter();
+      Object.assign(mockSocket, {
         remoteAddress: "127.0.0.1",
-        destroy: () => {
+        encrypted: false,
+        readable: true,
+        writable: true,
+        destroyed: false,
+        destroy: function() {
           console.log('[API Route] Socket destroy called');
+          this.destroyed = true;
+          this.emit('close');
+          return this;
         },
-        end: () => {
+        end: function() {
           console.log('[API Route] Socket end called');
+          this.emit('end');
+          return this;
         },
-        setTimeout: () => {},
-        setKeepAlive: () => {},
-        setNoDelay: () => {},
-        ref: () => {},
-        unref: () => {}
-      };
+        setTimeout: function() { return this; },
+        setKeepAlive: function() { return this; },
+        setNoDelay: function() { return this; },
+        ref: function() { return this; },
+        unref: function() { return this; },
+        pause: function() { return this; },
+        resume: function() { return this; }
+      });
       
-      mockReq.connection = mockReq.socket;
+      mockReq.socket = mockSocket;
+      mockReq.connection = mockSocket;
       
       // For file uploads, ensure proper content-length
       if (bodyBuf.length > 0 && headers['content-type']?.includes('multipart/form-data')) {
