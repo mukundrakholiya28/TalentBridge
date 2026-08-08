@@ -139,7 +139,26 @@ async function handler(
 
   try {
     const app     = await buildExpressApp();
-    const bodyBuf = Buffer.from(await req.arrayBuffer());
+    
+    // Check content-length before reading body
+    const contentLength = parseInt(req.headers.get('content-length') || '0');
+    if (contentLength > 5 * 1024 * 1024) { // 5MB limit
+      return NextResponse.json(
+        { success: false, error: "File too large. Maximum size is 5MB." },
+        { status: 413 }
+      );
+    }
+    
+    let bodyBuf: Buffer;
+    try {
+      bodyBuf = Buffer.from(await req.arrayBuffer());
+    } catch (bufErr: any) {
+      console.error('[API Route] Error reading request body:', bufErr);
+      return NextResponse.json(
+        { success: false, error: "Failed to read request body. Please try with a smaller file." },
+        { status: 400 }
+      );
+    }
 
     const headers: Record<string, string> = {};
     req.headers.forEach((v, k) => { headers[k] = v; });
