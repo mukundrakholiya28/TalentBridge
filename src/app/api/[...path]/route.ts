@@ -174,8 +174,7 @@ async function handler(
     const queryStr = req.nextUrl.search || "";
     const url = req.nextUrl.pathname + queryStr;
 
-    const { Readable } = require("stream");
-    const { EventEmitter } = require("events");
+    const { Readable, Duplex } = require("stream");
 
     return new Promise<NextResponse>((resolve) => {
       const chunks: Buffer[] = [];
@@ -219,33 +218,23 @@ async function handler(
       mockReq.originalUrl = url;
       mockReq.headers = headers;
       
-      // Create a proper mock socket that extends EventEmitter
-      const mockSocket = new EventEmitter();
-      Object.assign(mockSocket, {
-        remoteAddress: "127.0.0.1",
-        encrypted: false,
-        readable: true,
-        writable: true,
-        destroyed: false,
-        destroy: function() {
-          console.log('[API Route] Socket destroy called');
-          this.destroyed = true;
-          this.emit('close');
-          return this;
-        },
-        end: function() {
-          console.log('[API Route] Socket end called');
-          this.emit('end');
-          return this;
-        },
-        setTimeout: function() { return this; },
-        setKeepAlive: function() { return this; },
-        setNoDelay: function() { return this; },
-        ref: function() { return this; },
-        unref: function() { return this; },
-        pause: function() { return this; },
-        resume: function() { return this; }
+      // Create a proper mock socket using Duplex stream (bidirectional)
+      const mockSocket = new Duplex({
+        read() {},
+        write(chunk: any, encoding: any, callback: any) {
+          if (callback) callback();
+        }
       });
+      
+      mockSocket.remoteAddress = "127.0.0.1";
+      mockSocket.encrypted = false;
+      
+      // Override destroy to prevent actual stream destruction issues
+      const originalDestroy = mockSocket.destroy.bind(mockSocket);
+      mockSocket.destroy = function() {
+        console.log('[API Route] Socket destroy called');
+        return this;
+      };
       
       mockReq.socket = mockSocket;
       mockReq.connection = mockSocket;
