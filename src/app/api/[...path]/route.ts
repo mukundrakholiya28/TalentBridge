@@ -8,6 +8,11 @@
  */
 import { NextRequest, NextResponse } from "next/server";
 
+// Polyfill DOMMatrix for Node.js serverless environment (required by pdf-parse / transformers)
+if (typeof (global as any).DOMMatrix === "undefined") {
+  (global as any).DOMMatrix = class DOMMatrix {};
+}
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 type ExpressApp = (req: any, res: any, next: () => void) => void;
 
