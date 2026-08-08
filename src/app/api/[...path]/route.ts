@@ -105,6 +105,7 @@ async function handler(
       const mockReq = Readable.from(bodyBuf) as any;
       mockReq.method = req.method;
       mockReq.url = url;
+      mockReq.originalUrl = url;
       mockReq.headers = headers;
       mockReq.socket = { remoteAddress: "127.0.0.1" };
       mockReq.connection = {};
