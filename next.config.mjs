@@ -9,9 +9,23 @@ const nextConfig = {
   reactStrictMode: false,
 
   outputFileTracingIncludes: {
-    '/api/**/*': ['./server/**/*'],
-    '/api': ['./server/**/*'],
+    '/api/[...path]': ['./server/**/*'],
   },
+
+  serverExternalPackages: [
+    '@supabase/supabase-js',
+    'express',
+    'cors',
+    'multer',
+    'bcryptjs',
+    'jsonwebtoken',
+    'uuid',
+    'dotenv',
+    'google-auth-library',
+    '@google/genai',
+    'pusher',
+    'pdf-parse',
+  ],
 
 
 
