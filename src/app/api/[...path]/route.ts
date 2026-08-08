@@ -1,143 +1,149 @@
 /**
- * Next.js App Router catch-all handler that proxies /api/* requests
- * to the Express application. This lets the existing Express routes
- * (auth, jobs, applications, …) run inside a Vercel serverless function.
+ * Next.js App Router catch-all handler for /api/*
+ *
+ * All imports of the Express app are DYNAMIC (inside the handler function)
+ * so webpack never touches server/ files at build time.
+ * Node.js requires them at runtime — on Vercel this works because the
+ * server/ directory is deployed as-is alongside the Next.js bundle.
  */
 import { NextRequest, NextResponse } from "next/server";
 
-// Lazily build the Express app once per cold-start
-let expressApp: ReturnType<typeof import("express")> | null = null;
+// ─── Types ────────────────────────────────────────────────────────────────────
+type ExpressApp = (req: any, res: any, next: () => void) => void;
 
-async function getExpressApp() {
-  if (expressApp) return expressApp;
+// ─── Singleton: built once per cold-start, reused across warm invocations ─────
+let cachedApp: ExpressApp | null = null;
 
-  const express = (await import("express")).default;
-  const multer = (await import("multer")).default;
-  const cors = (await import("cors")).default;
+async function buildExpressApp(): Promise<ExpressApp> {
+  if (cachedApp) return cachedApp;
+
+  // All require() calls happen here — at runtime only, never at build time.
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const express   = require("express") as typeof import("express");
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const cors      = require("cors");
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const multer    = require("multer");
 
   const app = express();
   app.use(cors({ origin: "*" }));
   app.use(express.json({ limit: "5mb" }));
 
-  // ── Routes ───────────────────────────────────────────────────────────────
-  const authRoutes        = (await import("@/../server/routes/auth")).default;
-  const jobRoutes         = (await import("@/../server/routes/jobs")).default;
-  const applicationRoutes = (await import("@/../server/routes/applications")).default;
-  const messageRoutes     = (await import("@/../server/routes/messages")).default;
-  const evaluationRoutes  = (await import("@/../server/routes/evaluation")).default;
-  const ragSearchRoutes   = (await import("@/../server/routes/ragSearch")).default;
-  const atsRoutes         = (await import("@/../server/routes/ats")).default;
-  const resumeRoutes      = (await import("@/../server/routes/resume")).default;
-  const offerRoutes       = (await import("@/../server/routes/offers")).default;
-  const oaRoutes          = (await import("@/../server/routes/oa")).default;
-  const candidateRoutes   = (await import("@/../server/routes/candidate")).default;
-  const recruiterRoutes   = (await import("@/../server/routes/recruiter")).default;
+  // ── Routes (all require'd at runtime) ───────────────────────────────────
+  const base = process.cwd() + "/server";
 
-  const authMiddleware    = (await import("@/../server/middleware/authMiddleware")).default;
-  const { uploadResume }  = await import("@/../server/controllers/resumeController");
+  app.use("/api/auth",         require(`${base}/routes/auth`));
+  app.use("/api/jobs",         require(`${base}/routes/jobs`));
+  app.use("/api/applications", require(`${base}/routes/applications`));
+  app.use("/api/messages",     require(`${base}/routes/messages`));
+  app.use("/api/evaluation",   require(`${base}/routes/evaluation`));
+  app.use("/api/rag",          require(`${base}/routes/ragSearch`));
+  app.use("/api/ats",          require(`${base}/routes/ats`));
+  app.use("/api/resume",       require(`${base}/routes/resume`));
+  app.use("/api/offers",       require(`${base}/routes/offers`));
+  app.use("/api/oa",           require(`${base}/routes/oa`));
+  app.use("/api/candidate",    require(`${base}/routes/candidate`));
+  app.use("/api/recruiter",    require(`${base}/routes/recruiter`));
 
-  app.use("/api/auth",         authRoutes);
-  app.use("/api/jobs",         jobRoutes);
-  app.use("/api/applications", applicationRoutes);
-  app.use("/api/messages",     messageRoutes);
-  app.use("/api/evaluation",   evaluationRoutes);
-  app.use("/api/rag",          ragSearchRoutes);
-  app.use("/api/ats",          atsRoutes);
-  app.use("/api/resume",       resumeRoutes);
-  app.use("/api/offers",       offerRoutes);
-  app.use("/api/oa",           oaRoutes);
-  app.use("/api/candidate",    candidateRoutes);
-  app.use("/api/recruiter",    recruiterRoutes);
+  const authMiddleware             = require(`${base}/middleware/authMiddleware`);
+  const { uploadResume }           = require(`${base}/controllers/resumeController`);
 
-  // Resume upload (multipart)
   const upload = multer({
     storage: multer.memoryStorage(),
     limits: { fileSize: 5 * 1024 * 1024 },
-    fileFilter: (_req, file, cb) => {
+    fileFilter: (_req: any, file: any, cb: any) => {
       cb(null, file.mimetype === "application/pdf");
     },
   });
+
   app.post("/api/upload-resume", authMiddleware, upload.single("resume"), uploadResume);
 
-  expressApp = app;
-  return app;
+  cachedApp = app as unknown as ExpressApp;
+  return cachedApp;
 }
 
-/** Convert a Next.js Request into a plain IncomingMessage-like object */
-async function toNodeRequest(req: NextRequest, params: { path: string[] }) {
-  const url = "/api/" + params.path.join("/") + (req.nextUrl.search ?? "");
-  const body = await req.arrayBuffer();
-  const headers: Record<string, string> = {};
-  req.headers.forEach((value, key) => { headers[key] = value; });
-
-  return { method: req.method, url, headers, body: Buffer.from(body) };
-}
-
-/** Run the Express app against a mock req/res and collect the response */
-function runExpress(
-  app: ReturnType<typeof import("express")>,
-  nodeReq: Awaited<ReturnType<typeof toNodeRequest>>
+// ─── Bridge: Next.js Request → Express mock req/res → NextResponse ────────────
+async function handler(
+  req: NextRequest,
+  context: { params: Promise<{ path: string[] }> }
 ): Promise<NextResponse> {
-  return new Promise((resolve) => {
-    const chunks: Buffer[] = [];
-    const resHeaders: Record<string, string> = {};
-    let statusCode = 200;
-
-    // Minimal mock of http.IncomingMessage
-    const mockReq: any = {
-      method:  nodeReq.method,
-      url:     nodeReq.url,
-      headers: nodeReq.headers,
-      // Emit body as a readable stream
-      on(event: string, fn: Function) {
-        if (event === "data") fn(nodeReq.body);
-        if (event === "end")  fn();
-        return this;
-      },
-      pipe: () => {},
-      resume: () => {},
-    };
-
-    // Minimal mock of http.ServerResponse
-    const mockRes: any = {
-      statusCode,
-      setHeader(key: string, value: string) { resHeaders[key] = value; },
-      getHeader(key: string) { return resHeaders[key]; },
-      removeHeader(key: string) { delete resHeaders[key]; },
-      write(chunk: any) { chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)); },
-      end(chunk?: any) {
-        if (chunk) chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(String(chunk)));
-        const body = Buffer.concat(chunks);
-        resolve(
-          new NextResponse(body, {
-            status: mockRes.statusCode,
-            headers: resHeaders,
-          })
-        );
-      },
-      writeHead(code: number, headers?: Record<string, string>) {
-        mockRes.statusCode = code;
-        if (headers) Object.assign(resHeaders, headers);
-      },
-    };
-
-    (app as any)(mockReq, mockRes, () => {
-      resolve(NextResponse.json({ error: "Not found" }, { status: 404 }));
-    });
-  });
-}
-
-// ── HTTP method handlers ─────────────────────────────────────────────────────
-
-async function handler(req: NextRequest, context: { params: Promise<{ path: string[] }> }) {
   const params = await context.params;
+  const path   = params.path ?? [];
+
   try {
-    const app = await getExpressApp();
-    const nodeReq = await toNodeRequest(req, params);
-    return await runExpress(app as any, nodeReq);
+    const app     = await buildExpressApp();
+    const bodyBuf = Buffer.from(await req.arrayBuffer());
+
+    const headers: Record<string, string> = {};
+    req.headers.forEach((v, k) => { headers[k] = v; });
+
+    const url = "/api/" + path.join("/") + req.nextUrl.search;
+
+    return new Promise<NextResponse>((resolve) => {
+      const chunks: Buffer[] = [];
+      const resHeaders: Record<string, string> = {};
+      let status = 200;
+
+      const mockReq: any = {
+        method:  req.method,
+        url,
+        headers,
+        socket:  { remoteAddress: "127.0.0.1" },
+        connection: {},
+        on(event: string, fn: (data?: any) => void) {
+          if (event === "data") fn(bodyBuf);
+          if (event === "end")  fn();
+          return this;
+        },
+        // needed by multer / body parsers
+        pipe:   () => mockReq,
+        resume: () => mockReq,
+        unpipe: () => mockReq,
+      };
+
+      const mockRes: any = {
+        get statusCode() { return status; },
+        set statusCode(v: number) { status = v; },
+        headersSent: false,
+        finished: false,
+
+        setHeader(k: string, v: string) { resHeaders[k] = v; return this; },
+        getHeader(k: string) { return resHeaders[k]; },
+        getHeaders() { return resHeaders; },
+        removeHeader(k: string) { delete resHeaders[k]; },
+        hasHeader(k: string) { return k in resHeaders; },
+
+        writeHead(code: number, hdrs?: Record<string, string>) {
+          status = code;
+          if (hdrs) Object.assign(resHeaders, hdrs);
+          return this;
+        },
+        write(chunk: any) {
+          chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(String(chunk)));
+          return true;
+        },
+        end(chunk?: any) {
+          if (chunk) chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(String(chunk)));
+          this.headersSent = true;
+          this.finished    = true;
+          resolve(new NextResponse(Buffer.concat(chunks), { status, headers: resHeaders }));
+        },
+
+        // Express needs these
+        locals: {},
+        app: {},
+      };
+
+      app(mockReq, mockRes, () => {
+        resolve(NextResponse.json({ error: "Not Found" }, { status: 404 }));
+      });
+    });
   } catch (err: any) {
-    console.error("API route error:", err);
-    return NextResponse.json({ error: err.message ?? "Internal server error" }, { status: 500 });
+    console.error("[API route]", err);
+    return NextResponse.json(
+      { error: err?.message ?? "Internal Server Error" },
+      { status: 500 }
+    );
   }
 }
 
@@ -148,5 +154,5 @@ export const PATCH   = handler;
 export const DELETE  = handler;
 export const OPTIONS = handler;
 
-// Required for Vercel: don't cache API responses
+// Never cache API responses on Vercel
 export const dynamic = "force-dynamic";
