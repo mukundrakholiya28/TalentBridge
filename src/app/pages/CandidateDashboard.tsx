@@ -33,6 +33,18 @@ export function CandidateDashboard() {
     return () => clearTimeout(timer);
   }, [searchQuery, locationQuery]);
 
+  const formatSalary = (job: any) => {
+    if (job.salary) return job.salary;
+    const min = job.salaryMin || job.salary_min;
+    const max = job.salaryMax || job.salary_max;
+    if (min || max) {
+      if (min && max) return `$${Number(min).toLocaleString()} - $${Number(max).toLocaleString()}`;
+      if (min) return `From $${Number(min).toLocaleString()}`;
+      if (max) return `Up to $${Number(max).toLocaleString()}`;
+    }
+    return "Competitive";
+  };
+
   const loadJobs = async () => {
     try {
       setLoading(true);
@@ -41,7 +53,8 @@ export function CandidateDashboard() {
         if (Array.isArray(data)) {
           let result = data;
           if (locationQuery.trim() !== "") {
-            result = data.filter((j: any) => j.location.toLowerCase().includes(locationQuery.toLowerCase()));
+            const locLower = locationQuery.trim().toLowerCase();
+            result = data.filter((j: any) => String(j?.location || "").toLowerCase().includes(locLower));
           }
           setJobs(result.map((job: any) => ({ ...job, id: job._id || job.id })));
         } else {
@@ -151,7 +164,7 @@ export function CandidateDashboard() {
                         </div>
                         <div className="flex items-center gap-1">
                           <DollarSign className="w-4 h-4" />
-                          <span>{job.salary}</span>
+                          <span>{formatSalary(job)}</span>
                         </div>
                         <div className="flex items-center gap-1">
                           <Clock className="w-4 h-4" />

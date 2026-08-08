@@ -21,12 +21,44 @@ const ensureCandidateProfile = async (user) => {
       projects: Array.isArray(user.projects) ? user.projects : [],
       extraCurricular: Array.isArray(user.extraCurricular) ? user.extraCurricular : []
     });
-  }
-
-  // Email must always match the signed-in account email.
-  if (profile.email !== user.email) {
-    profile.email = user.email;
-    await profile.save();
+  } else {
+    // Fill in missing profile fields from user object if candidate record has empty fields
+    let updated = false;
+    if (!profile.name && user.fullName) { profile.name = user.fullName; updated = true; }
+    if (!profile.phone && user.phone) { profile.phone = user.phone; updated = true; }
+    if (!profile.title && user.title) { profile.title = user.title; updated = true; }
+    if (!profile.location && user.location) { profile.location = user.location; updated = true; }
+    if (!profile.githubUrl && user.githubUrl) { profile.githubUrl = user.githubUrl; updated = true; }
+    if (!profile.linkedinUrl && user.linkedinUrl) { profile.linkedinUrl = user.linkedinUrl; updated = true; }
+    if (!profile.summary && user.bio) { profile.summary = user.bio; updated = true; }
+    if ((!profile.technicalSkills || profile.technicalSkills.length === 0) && (user.technicalSkills?.length || user.skills?.length)) {
+      profile.technicalSkills = user.technicalSkills || user.skills || [];
+      profile.skills = user.skills || user.technicalSkills || [];
+      updated = true;
+    }
+    if ((!profile.experience || profile.experience.length === 0) && user.experience?.length) {
+      profile.experience = user.experience;
+      updated = true;
+    }
+    if ((!profile.education || profile.education.length === 0) && user.education?.length) {
+      profile.education = user.education;
+      updated = true;
+    }
+    if ((!profile.projects || profile.projects.length === 0) && user.projects?.length) {
+      profile.projects = user.projects;
+      updated = true;
+    }
+    if ((!profile.extraCurricular || profile.extraCurricular.length === 0) && user.extraCurricular?.length) {
+      profile.extraCurricular = user.extraCurricular;
+      updated = true;
+    }
+    if (profile.email !== user.email) {
+      profile.email = user.email;
+      updated = true;
+    }
+    if (updated) {
+      await profile.save();
+    }
   }
 
   return profile;
