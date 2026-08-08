@@ -27,10 +27,10 @@ const nextConfig = {
       'lib': path.resolve(__dirname, 'src/app/lib'),
     };
 
-    // Ignore binary .node files during Webpack bundling
+    // Handle binary .node files during Webpack bundling
     config.module.rules.push({
       test: /\.node$/,
-      loader: 'ignore-loader',
+      type: 'asset/resource',
     });
 
     // Node built-ins that have no browser equivalent — tell webpack to skip them
