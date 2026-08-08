@@ -6,9 +6,9 @@ const JWT_SECRET = process.env.JWT_SECRET || 'supersecret_talentbridge_key';
 export interface DecodedToken {
   id?: string;
   userId?: string;
-  email?: string;
   userType?: 'candidate' | 'recruiter';
   role?: 'candidate' | 'recruiter';
+  email?: string;
   iat?: number;
   exp?: number;
 }

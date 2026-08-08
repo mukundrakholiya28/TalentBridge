@@ -18,13 +18,29 @@ if (typeof (globalThis as any).DOMMatrix === "undefined") {
 const Candidate = require('@server/models/Candidate');
 const User = require('@server/models/User');
 
-const getCandidateContext = async (userId: string) => {
+const getCandidateContext = async (decoded: any) => {
+  const userId = decoded.id || decoded.userId;
   if (!userId) return { error: { code: 401, message: "Invalid user token" } };
 
+  console.log('[Resume Upload] Looking for user with id:', userId);
+  
   let user = await User.findOne({ id: String(userId) });
-  if (!user) user = await User.findOne({ _id: String(userId) });
+  if (!user) {
+    console.log('[Resume Upload] User not found by id field, trying _id...');
+    user = await User.findOne({ _id: String(userId) });
+  }
+  if (!user && decoded.email) {
+    console.log('[Resume Upload] User not found by id/_id, trying email:', decoded.email);
+    user = await User.findOne({ email: decoded.email });
+  }
 
-  if (!user) return { error: { code: 404, message: "User not found" } };
+  if (!user) {
+    console.error('[Resume Upload] User not found with any method');
+    return { error: { code: 404, message: "User not found" } };
+  }
+  
+  console.log('[Resume Upload] Found user:', user.email);
+  
   if (user.userType && user.userType !== "candidate") {
     return { error: { code: 403, message: "Not a candidate account" } };
   }
@@ -91,7 +107,7 @@ export async function POST(request: NextRequest) {
     }
 
     console.log('[Resume Upload] Getting candidate context...');
-    const context = await getCandidateContext(userId);
+    const context = await getCandidateContext(decoded);
     
     if (context.error) {
       console.error('[Resume Upload] Context error:', context.error);

@@ -123,7 +123,7 @@ export async function POST(request: NextRequest) {
       await user.save();
     }
 
-    const token = signToken({ userId: user.id, email: user.email, role: user.userType });
+    const token = signToken({ id: user.id, userType: user.userType });
     
     const response: any = { user, token };
     if (!user.google?.refreshToken) {
