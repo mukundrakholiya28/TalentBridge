@@ -49,6 +49,8 @@ class LocalMemoryStore {
             _select: '*',
             _order: null,
             _limit: null,
+            _action: 'select',
+            _updatePayload: null,
 
             select(columns = '*') {
                 this._select = columns;
@@ -86,6 +88,17 @@ class LocalMemoryStore {
                 return this;
             },
 
+            update(updates) {
+                this._action = 'update';
+                this._updatePayload = updates;
+                return this;
+            },
+
+            delete() {
+                this._action = 'delete';
+                return this;
+            },
+
             async single() {
                 const res = await this.exec();
                 if (res.error) return res;
@@ -99,6 +112,31 @@ class LocalMemoryStore {
             },
 
             async exec() {
+                if (this._action === 'update') {
+                    let filtered = [...rows];
+                    for (const filterFn of this._filters) {
+                        filtered = filtered.filter(filterFn);
+                    }
+                    const updated = [];
+                    for (const row of filtered) {
+                        Object.assign(row, this._updatePayload, { updated_at: new Date().toISOString() });
+                        updated.push(row);
+                    }
+                    return { data: updated, error: null };
+                }
+
+                if (this._action === 'delete') {
+                    let toRemove = [...rows];
+                    for (const filterFn of this._filters) {
+                        toRemove = toRemove.filter(filterFn);
+                    }
+                    for (const row of toRemove) {
+                        const idx = rows.indexOf(row);
+                        if (idx !== -1) rows.splice(idx, 1);
+                    }
+                    return { data: toRemove, error: null };
+                }
+
                 let filtered = [...rows];
                 for (const filterFn of this._filters) {
                     filtered = filtered.filter(filterFn);
@@ -131,31 +169,6 @@ class LocalMemoryStore {
                     inserted.push(row);
                 }
                 return { data: Array.isArray(data) ? inserted : inserted[0], error: null };
-            },
-
-            async update(updates) {
-                let filtered = [...rows];
-                for (const filterFn of this._filters) {
-                    filtered = filtered.filter(filterFn);
-                }
-                const updated = [];
-                for (const row of filtered) {
-                    Object.assign(row, updates, { updated_at: new Date().toISOString() });
-                    updated.push(row);
-                }
-                return { data: updated, error: null };
-            },
-
-            async delete() {
-                let toRemove = [...rows];
-                for (const filterFn of this._filters) {
-                    toRemove = toRemove.filter(filterFn);
-                }
-                for (const row of toRemove) {
-                    const idx = rows.indexOf(row);
-                    if (idx !== -1) rows.splice(idx, 1);
-                }
-                return { data: toRemove, error: null };
             },
 
             then(resolve, reject) {

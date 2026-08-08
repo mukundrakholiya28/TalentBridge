@@ -138,15 +138,29 @@ class SupabaseModel {
         const rowUpdates = toSnakeCase(updates.$set || updates);
         delete rowUpdates.id;
 
-        const { data, error } = await this.client
-            .from(this.tableName)
-            .update(rowUpdates)
-            .eq("id", String(id))
-            .select();
-
-        if (error) throw new Error(error.message);
-        const result = Array.isArray(data) ? data[0] : data;
-        return toCamelCase(result);
+        try {
+            const { data, error } = await withTimeout(
+                this.client
+                    .from(this.tableName)
+                    .update(rowUpdates)
+                    .eq("id", String(id))
+                    .select(),
+                3000
+            );
+            if (error) throw new Error(error.message);
+            const result = Array.isArray(data) ? data[0] : data;
+            return toCamelCase(result);
+        } catch (err) {
+            console.warn(`⚠️ Supabase update fallback for ${this.tableName}:`, err.message);
+            const { localStore } = require("./supabaseClient");
+            const res = await localStore
+                .from(this.tableName)
+                .update(rowUpdates)
+                .eq("id", String(id))
+                .exec();
+            const result = Array.isArray(res.data) ? res.data[0] : res.data;
+            return toCamelCase(result);
+        }
     }
 
     async findOneAndUpdate(query, updates, options = { new: true, upsert: false }) {
@@ -168,13 +182,26 @@ class SupabaseModel {
         const target = await this.findById(id);
         if (!target) return null;
 
-        const { error } = await this.client
-            .from(this.tableName)
-            .delete()
-            .eq("id", String(id));
-
-        if (error) throw new Error(error.message);
-        return target;
+        try {
+            const { error } = await withTimeout(
+                this.client
+                    .from(this.tableName)
+                    .delete()
+                    .eq("id", String(id)),
+                3000
+            );
+            if (error) throw new Error(error.message);
+            return target;
+        } catch (err) {
+            console.warn(`⚠️ Supabase delete fallback for ${this.tableName}:`, err.message);
+            const { localStore } = require("./supabaseClient");
+            await localStore
+                .from(this.tableName)
+                .delete()
+                .eq("id", String(id))
+                .exec();
+            return target;
+        }
     }
 
     async countDocuments(query = {}) {
