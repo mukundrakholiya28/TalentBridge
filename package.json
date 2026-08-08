@@ -3,9 +3,11 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "node server.js --dev",
+    "dev": "next dev",
+    "dev:old": "node server.js --dev",
     "build": "next build",
-    "start": "node server.js",
+    "start": "next start",
+    "start:old": "node server.js",
     "seed": "node server/seed.js"
   },
   "dependencies": {
