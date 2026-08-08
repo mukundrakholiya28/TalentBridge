@@ -184,21 +184,7 @@ async function handler(
       let dataPushed = false;
       let streamError: Error | null = null;
       
-      console.log('[API Route] Creating mock request stream, buffer size:', bodyBuf.length);
-      
-      const mockReq: any = new Readable({
-        read() {
-          if (!dataPushed) {
-            dataPushed = true;
-            console.log('[API Route] Pushing body buffer to stream');
-            if (bodyBuf.length > 0) {
-              this.push(bodyBuf);
-            }
-            this.push(null);
-            console.log('[API Route] Stream ended');
-          }
-        }
-      });
+      const mockReq: any = Readable.from(bodyBuf);
 
       mockReq.on('error', (err: Error) => {
         console.error('[API Route] Request stream error:', err);
