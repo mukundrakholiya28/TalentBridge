@@ -42,7 +42,7 @@ export function OAuthCallback() {
           (window.location.origin + '/auth/oauth-callback');
 
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 60000);
+        const timeoutId = setTimeout(() => controller.abort(), 12000);
 
         const response = await fetch(`${API_BASE_URL}/auth/oauth`, {
           method: 'POST',

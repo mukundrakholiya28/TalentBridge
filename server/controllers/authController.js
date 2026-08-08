@@ -42,32 +42,36 @@ const oauthExchange = async (req, res) => {
 
     if (!code || !redirectUri) return res.status(400).json({ error: 'Missing code or redirectUri' });
 
-    if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET) {
-      return res.status(500).json({ error: 'Google OAuth not configured on server' });
+    const clientId = process.env.GOOGLE_CLIENT_ID || process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
+    const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+
+    if (!clientId || !clientSecret) {
+      return res.status(400).json({ error: 'Google OAuth credentials (GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET) are not configured on server' });
     }
 
-    const client = new OAuth2Client(GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, redirectUri);
+    const client = new OAuth2Client(clientId, clientSecret, redirectUri);
     let tokens;
     try {
-      if (codeVerifier) {
-        // PKCE: include the code_verifier in the token exchange
-        const r = await client.getToken({ code, codeVerifier });
-        tokens = r && r.tokens ? r.tokens : r;
-      } else {
-        const r = await client.getToken(code);
-        tokens = r && r.tokens ? r.tokens : r;
-      }
-    } catch (e) {
-      // fallback to simple exchange
-      const r = await client.getToken(code);
+      const getTokenPromise = codeVerifier
+        ? client.getToken({ code, codeVerifier })
+        : client.getToken(code);
+
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Google token exchange timed out')), 8000)
+      );
+
+      const r = await Promise.race([getTokenPromise, timeoutPromise]);
       tokens = r && r.tokens ? r.tokens : r;
+    } catch (e) {
+      console.error("Google token exchange error:", e?.message || e);
+      return res.status(400).json({ error: `Google OAuth failed: ${e?.message || 'Invalid or expired authorization code'}` });
     }
-    // tokens contains access_token, refresh_token (if requested), id_token, scope, expiry_date
+
     if (!tokens || !tokens.id_token) {
       return res.status(400).json({ error: 'Failed to retrieve tokens from Google' });
     }
 
-    const ticket = await client.verifyIdToken({ idToken: tokens.id_token, audience: GOOGLE_CLIENT_ID });
+    const ticket = await client.verifyIdToken({ idToken: tokens.id_token, audience: clientId });
     const payload = ticket.getPayload();
     const email = payload.email;
     const name = payload.name;
