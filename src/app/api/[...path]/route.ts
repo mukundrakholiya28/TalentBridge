@@ -119,37 +119,25 @@ async function handler(
     const queryStr = req.nextUrl.search || "";
     const url = req.nextUrl.pathname + queryStr;
 
-    const { Readable } = require("stream");
+    const { PassThrough } = require("stream");
 
     return new Promise<NextResponse>((resolve) => {
       const chunks: Buffer[] = [];
       const resHeaders: Record<string, string> = {};
       let status = 200;
 
-      let bodyEnded = false;
-      const mockReq: any = {
-        method:  req.method,
-        url,
-        originalUrl: url,
-        headers,
-        socket:  { remoteAddress: "127.0.0.1" },
-        connection: {},
-        on(event: string, fn: (data?: any) => void) {
-          if (event === "data") {
-            if (bodyBuf.length > 0) {
-              fn(bodyBuf);
-            }
-          } else if (event === "end") {
-            if (!bodyEnded) {
-              bodyEnded = true;
-              fn();
-            }
-          }
-          return this;
-        },
-        resume() { return this; },
-        pause() { return this; },
-      };
+      const mockReq = new PassThrough();
+      mockReq.method = req.method;
+      mockReq.url = url;
+      mockReq.originalUrl = url;
+      mockReq.headers = headers;
+      (mockReq as any).socket = { remoteAddress: "127.0.0.1" };
+      (mockReq as any).connection = {};
+
+      if (bodyBuf.length > 0) {
+        mockReq.write(bodyBuf);
+      }
+      mockReq.end();
 
       const mockRes: any = {
         get statusCode() { return status; },
@@ -179,13 +167,16 @@ async function handler(
           resolve(new NextResponse(Buffer.concat(chunks), { status, headers: resHeaders }));
         },
 
-        // Express needs these
         locals: {},
         app: {},
       };
 
-      app(mockReq, mockRes, () => {
-        resolve(NextResponse.json({ error: "Not Found" }, { status: 404 }));
+      app(mockReq, mockRes, (err: any) => {
+        if (err) {
+          console.error("[Express Error Callback]", err);
+          return resolve(NextResponse.json({ error: err?.message || String(err) }, { status: 500 }));
+        }
+        resolve(NextResponse.json({ error: `Route ${url} not found` }, { status: 404 }));
       });
     });
   } catch (err: any) {
