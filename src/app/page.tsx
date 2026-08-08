@@ -1,15 +1,12 @@
 import { Suspense } from "react";
 import { LandingPage } from "@/app/pages/LandingPage";
+import { PageSkeleton } from "@/components/PageSkeleton";
+
+export const revalidate = 3600; // Revalidate every hour
 
 export default function Page() {
   return (
-    <Suspense
-      fallback={
-        <div className="min-h-screen flex items-center justify-center text-gray-400">
-          Loading...
-        </div>
-      }
-    >
+    <Suspense fallback={<PageSkeleton />}>
       <LandingPage />
     </Suspense>
   );

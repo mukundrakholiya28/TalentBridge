@@ -1,9 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "@/lib/router-compat";
 import { DashboardHeader } from "../components/DashboardHeader";
 import { Search, MapPin, Briefcase, Building, DollarSign, Clock } from "lucide-react";
 import { apiClient } from "../../utils/apiClient";
-import { toast } from "sonner";
+import { CardSkeleton } from "@/components/PageSkeleton";
+import { debounce } from "@/lib/performance";
 
 interface Job {
   id: string;
@@ -26,13 +27,6 @@ export function CandidateDashboard() {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      loadJobs();
-    }, 500);
-    return () => clearTimeout(timer);
-  }, [searchQuery, locationQuery]);
-
   const formatSalary = (job: any) => {
     if (job.salary) return job.salary;
     const min = job.salaryMin || job.salary_min;
@@ -45,27 +39,27 @@ export function CandidateDashboard() {
     return "Competitive";
   };
 
-  const loadJobs = async () => {
+  const loadJobs = useCallback(async (search: string, location: string) => {
     try {
       setLoading(true);
-      if (searchQuery.trim() === "") {
-        const data = await apiClient.get('/jobs');
+      if (search.trim() === "") {
+        // Cached GET – instant on repeat visits
+        const data = await apiClient.get('/jobs', false, 5 * 60_000);
         if (Array.isArray(data)) {
           let result = data;
-          if (locationQuery.trim() !== "") {
-            const locLower = locationQuery.trim().toLowerCase();
+          if (location.trim() !== "") {
+            const locLower = location.trim().toLowerCase();
             result = data.filter((j: any) => String(j?.location || "").toLowerCase().includes(locLower));
           }
           setJobs(result.map((job: any) => ({ ...job, id: job._id || job.id })));
+        } else if (data?.jobs) {
+          setJobs(data.jobs.map((job: any) => ({ ...job, id: job._id || job.id })));
         } else {
           setJobs([]);
         }
       } else {
-        const data = await apiClient.post('/jobs/semantic-search', {
-          query: searchQuery,
-          location: locationQuery
-        });
-        if (data && data.success && Array.isArray(data.results)) {
+        const data = await apiClient.post('/jobs/semantic-search', { query: search, location });
+        if (data?.success && Array.isArray(data.results)) {
           setJobs(data.results.map((job: any) => ({ ...job, id: job._id || job.id })));
         } else {
           setJobs([]);
@@ -76,9 +70,18 @@ export function CandidateDashboard() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const filteredJobs = jobs; // Backend handles all filtering now
+  // Debounced search – avoids an API call per keystroke
+  const debouncedLoad = useCallback(debounce(loadJobs, 400), [loadJobs]);
+
+  // Initial load – no debounce needed
+  useEffect(() => { loadJobs("", ""); }, [loadJobs]);
+
+  // Triggered when user types
+  useEffect(() => {
+    if (searchQuery || locationQuery) debouncedLoad(searchQuery, locationQuery);
+  }, [searchQuery, locationQuery, debouncedLoad]);
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
@@ -119,7 +122,7 @@ export function CandidateDashboard() {
         {/* Results Summary */}
         <div className="mb-6">
           <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-            {filteredJobs.length} jobs found
+            {loading ? '...' : `${jobs.length} jobs found`}
           </h2>
           <p className="text-gray-600 dark:text-gray-400">
             Based on your profile and search criteria
@@ -128,7 +131,11 @@ export function CandidateDashboard() {
 
         {/* Job Listings */}
         <div className="space-y-4">
-          {filteredJobs.map((job) => (
+          {loading ? (
+            <>
+              {[1, 2, 3, 4].map(i => <CardSkeleton key={i} />)}
+            </>
+          ) : jobs.map((job) => (
             <div
               key={job.id}
               onClick={() => navigate(`/job/${job.id}`)}
@@ -193,7 +200,7 @@ export function CandidateDashboard() {
           ))}
         </div>
 
-        {filteredJobs.length === 0 && (
+        {jobs.length === 0 && !loading && (
           <div className="text-center py-12">
             <Search className="w-16 h-16 text-gray-400 mx-auto mb-4" />
             <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">

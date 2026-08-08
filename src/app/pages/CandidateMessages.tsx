@@ -95,7 +95,7 @@ export function CandidateMessages() {
 
     const fetchConversations = async () => {
         try {
-            const data = await apiClient.get('/messages/conversations');
+            const data = await apiClient.get('/messages/conversations', true, 30_000);
             if (data.success && data.conversations) {
                 // Map backend shape (candidateId/candidateName) to candidate UI shape (recruiterId/recruiterName)
                 const mapped = data.conversations.map((c: any) => ({
@@ -129,7 +129,7 @@ export function CandidateMessages() {
 
     const fetchMessages = async (recruiterId: string) => {
         try {
-            const data = await apiClient.get(`/messages/${recruiterId}`);
+            const data = await apiClient.get(`/messages/${recruiterId}`, true, 15_000);
             if (data.success) {
                 setMessages(data.messages || []);
             }
@@ -142,23 +142,43 @@ export function CandidateMessages() {
         if (type === 'text' && !newMessage.trim()) return;
         if (!selectedRecruiter) return;
 
+        const tempMessage: Message = {
+            id: `temp_${Date.now()}`,
+            senderId: currentUserId,
+            senderName: 'You',
+            receiverId: selectedRecruiter,
+            content: type === 'text' ? newMessage : `[${type} call]`,
+            type,
+            timestamp: new Date().toISOString(),
+            read: false
+        };
+
+        // Optimistic update – instant UI feedback
+        setMessages(prev => [...prev, tempMessage]);
+        const contentToSend = newMessage;
+        setNewMessage("");
         setSendingMessage(true);
 
         try {
             const data = await apiClient.post('/messages', {
                 receiverId: selectedRecruiter,
-                content: type === 'text' ? newMessage : `[${type} call]`,
+                content: contentToSend || `[${type} call]`,
                 type,
             });
 
             if (data.success) {
-                setNewMessage("");
-                fetchMessages(selectedRecruiter);
+                // Replace temp message with real one
+                setMessages(prev => prev.map(m => 
+                    m.id === tempMessage.id && data.message ? data.message : m
+                ));
                 fetchConversations();
             } else {
+                // Remove temp message on failure
+                setMessages(prev => prev.filter(m => m.id !== tempMessage.id));
                 toast.error("Failed to send message");
             }
         } catch (error) {
+            setMessages(prev => prev.filter(m => m.id !== tempMessage.id));
             console.error("Error sending message:", error);
             toast.error("Failed to send message");
         } finally {

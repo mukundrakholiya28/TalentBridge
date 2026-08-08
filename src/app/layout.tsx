@@ -3,6 +3,7 @@ import "@/styles/index.css";
 import { ThemeProvider } from "next-themes";
 import { Toaster } from "sonner";
 import Script from "next/script";
+import { QueryProvider } from "@/components/QueryProvider";
 
 export const metadata: Metadata = {
   title: "TalentBridge — AI-Powered Recruitment Platform",
@@ -45,10 +46,12 @@ export default function RootLayout({
         <Script src="https://accounts.google.com/gsi/client" strategy="lazyOnload" />
       </head>
       <body className="bg-background text-foreground antialiased min-h-screen">
-        <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-          {children}
-          <Toaster position="top-right" />
-        </ThemeProvider>
+        <QueryProvider>
+          <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+            {children}
+            <Toaster position="top-right" />
+          </ThemeProvider>
+        </QueryProvider>
       </body>
     </html>
   );

@@ -14,14 +14,13 @@ export function RecruiterDashboard() {
   const [savingProfile, setSavingProfile] = useState(false);
 
   useEffect(() => {
-    fetchJobs();
-    fetchRecentApplications();
-    fetchProfile();
+    // Parallel fetches – all 3 requests fire at once
+    Promise.all([fetchJobs(), fetchRecentApplications(), fetchProfile()]);
   }, []);
 
   const fetchProfile = async () => {
     try {
-      const res = await apiClient.get('/recruiter/profile');
+      const res = await apiClient.get('/recruiter/profile', true, 2 * 60_000);
       if (res && res.profile) setProfile(res.profile);
     } catch (err) {
       console.error('Failed to load recruiter profile', err);
@@ -30,10 +29,9 @@ export function RecruiterDashboard() {
 
   const fetchJobs = async () => {
     try {
-      const data = await apiClient.get('/jobs/recruiter');
-      if (Array.isArray(data)) {
-        setJobs(data);
-      }
+      const data = await apiClient.get('/jobs/recruiter', true, 60_000);
+      if (Array.isArray(data)) setJobs(data);
+      else if (data?.jobs) setJobs(data.jobs);
     } catch (error) {
       console.error("Failed to fetch jobs data:", error);
     }
@@ -41,26 +39,29 @@ export function RecruiterDashboard() {
 
   const fetchRecentApplications = async () => {
     try {
-      const data = await apiClient.get('/applications/recruiter');
-      if (Array.isArray(data)) {
-        setRecentApplications(data);
-      }
+      const data = await apiClient.get('/applications/recruiter', true, 30_000);
+      if (Array.isArray(data)) setRecentApplications(data);
     } catch (error) {
       console.error("Failed to fetch recent applications:", error);
     }
   };
 
   const updateAppStatus = async (appId: string, status: string) => {
+    // Optimistic update – instant UI response
+    setRecentApplications(prev =>
+      prev.map(a => a.id === appId ? { ...a, status } : a)
+    );
     try {
       const result = await apiClient.put(`/applications/${appId}/status`, { status });
       if (result.success) {
         toast.success(`Application ${status === 'rejected' ? 'rejected' : 'moved to ' + status}`);
-        fetchRecentApplications();
       } else {
+        // Rollback on failure
+        fetchRecentApplications();
         toast.error('Failed to update status');
       }
     } catch (error) {
-      console.error('Status update error:', error);
+      fetchRecentApplications();
       toast.error('Failed to update status');
     }
   };
