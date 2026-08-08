@@ -13,6 +13,8 @@ const nextConfig = {
   },
 
   serverExternalPackages: [
+    '@xenova/transformers',
+    'onnxruntime-node',
     '@supabase/supabase-js',
     'express',
     'cors',
