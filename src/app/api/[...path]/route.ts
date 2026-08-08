@@ -102,14 +102,34 @@ async function handler(
       const resHeaders: Record<string, string> = {};
       let status = 200;
 
-      const mockReq: any = Object.assign(Readable.from(bodyBuf), {
-        method: req.method,
+      let pipeDone = false;
+      const mockReq: any = {
+        method:  req.method,
         url,
         originalUrl: url,
         headers,
-        socket: { remoteAddress: "127.0.0.1" },
+        socket:  { remoteAddress: "127.0.0.1" },
         connection: {},
-      });
+        on(event: string, fn: (data?: any) => void) {
+          if (event === "data") {
+            if (bodyBuf.length > 0) process.nextTick(() => fn(bodyBuf));
+          } else if (event === "end") {
+            process.nextTick(() => fn());
+          }
+          return this;
+        },
+        resume() { return this; },
+        pause() { return this; },
+        pipe(dest: any) {
+          if (!pipeDone) {
+            pipeDone = true;
+            if (bodyBuf.length > 0) dest.write(bodyBuf);
+            dest.end();
+          }
+          return dest;
+        },
+        unpipe() { return this; },
+      };
 
       const mockRes: any = {
         get statusCode() { return status; },
