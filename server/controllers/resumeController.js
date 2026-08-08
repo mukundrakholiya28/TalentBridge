@@ -264,104 +264,80 @@ const uploadResume = async (req, res) => {
         }
         
         console.log('[Resume Upload] Context retrieved successfully');
-
         let structuredData = {};
         
-        // Try Gemini API with PDF file directly
         if (process.env.GEMINI_API_KEY) {
-            try {
-                console.log('[Resume Upload] Converting PDF to base64...');
-                const pdfBase64 = req.file.buffer.toString('base64');
-                console.log('[Resume Upload] Base64 length:', pdfBase64.length);
-                
-                console.log('[Resume Upload] Sending PDF to Gemini...');
-                const { GoogleGenerativeAI } = require("@google/generative-ai");
-                const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-                const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+            const modelsToTry = [
+                process.env.GEMINI_MODEL,
+                "gemini-2.0-flash",
+                "gemini-1.5-flash",
+                "gemini-1.5-pro"
+            ].filter(Boolean);
 
-                const prompt = `Extract information from this resume PDF and return ONLY valid JSON (no markdown, no explanation):
+            const pdfBase64 = req.file.buffer.toString('base64');
+            const { GoogleGenerativeAI } = require("@google/generative-ai");
+            const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+
+            const prompt = `Extract profile details from this resume PDF.
+Return ONLY a valid zero-shot JSON object matching this exact structure:
 
 {
-  "name": "",
-  "email": "",
-  "phone": "",
-  "githubUrl": "",
-  "linkedinUrl": "",
-  "technicalSkills": [],
-  "experience": [{"title":"","company":"","period":"","description":""}],
-  "education": [{"degree":"","institution":"","year":""}],
-  "projects": [{"name":"","description":""}],
-  "extraCurricular": [],
-  "summary": ""
+  "name": "Candidate Full Name",
+  "email": "Email Address",
+  "phone": "Phone Number",
+  "githubUrl": "GitHub Profile URL",
+  "linkedinUrl": "LinkedIn Profile URL",
+  "technicalSkills": ["Skill 1", "Skill 2"],
+  "experience": [{"title": "Role Title", "company": "Company Name", "period": "Duration", "description": "One line summary"}],
+  "education": [{"degree": "Degree/Branch", "institution": "College/University", "year": "Year/Period"}],
+  "projects": [{"name": "Project Name", "description": "One line description"}],
+  "extraCurricular": ["Activity/Achievement 1"],
+  "summary": "Professional summary paragraph"
 }
 
-Extract ALL information. Use "" or [] if not found.`;
+Fill all available details. Use empty strings or empty arrays for missing fields. Do not include markdown text.`;
 
-                const result = await model.generateContent([
-                    {
-                        inlineData: {
-                            mimeType: "application/pdf",
-                            data: pdfBase64
+            for (const modelName of modelsToTry) {
+                try {
+                    console.log(`[Resume Upload] Requesting zero-shot JSON from Gemini model: ${modelName}...`);
+                    const model = genAI.getGenerativeModel({
+                        model: modelName,
+                        generationConfig: {
+                            responseMimeType: "application/json",
+                            temperature: 0.1
                         }
-                    },
-                    { text: prompt }
-                ]);
+                    });
 
-                const response = await result.response;
-                const text = response.text();
-                console.log('[Resume Upload] Gemini response length:', text.length);
-                console.log('[Resume Upload] Gemini response preview:', text.substring(0, 200));
+                    const result = await model.generateContent([
+                        {
+                            inlineData: {
+                                mimeType: req.file.mimetype || "application/pdf",
+                                data: pdfBase64
+                            }
+                        },
+                        { text: prompt }
+                    ]);
 
-                // Extract JSON from response (remove markdown if present)
-                let jsonText = text.trim();
-                jsonText = jsonText.replace(/^```json\s*/i, '').replace(/\s*```$/,  '');
-                jsonText = jsonText.replace(/^```\s*/, '').replace(/\s*```$/, '');
-                
-                const jsonMatch = jsonText.match(/\{[\s\S]*\}/);
-                if (jsonMatch) {
-                    structuredData = JSON.parse(jsonMatch[0]);
-                    console.log('[Resume Upload] Successfully parsed JSON from Gemini');
-                    console.log('[Resume Upload] Extracted name:', structuredData.name);
-                    console.log('[Resume Upload] Extracted email:', structuredData.email);
-                } else {
-                    console.error('[Resume Upload] No JSON found in Gemini response');
-                    throw new Error('No JSON in Gemini response');
+                    const response = await result.response;
+                    const text = response.text();
+                    console.log(`[Resume Upload] Gemini (${modelName}) response length:`, text?.length);
+
+                    if (text) {
+                        const jsonText = text.replace(/^```json\s*/i, '').replace(/\s*```$/, '').replace(/^```\s*/, '').replace(/\s*```$/, '').trim();
+                        const jsonMatch = jsonText.match(/\{[\s\S]*\}/);
+                        if (jsonMatch) {
+                            structuredData = JSON.parse(jsonMatch[0]);
+                            console.log('[Resume Upload] Successfully extracted zero-shot JSON profile for:', structuredData.name || 'Candidate');
+                            break;
+                        }
+                    }
+                } catch (geminiModelErr) {
+                    console.warn(`[Resume Upload] Gemini model ${modelName} failed:`, geminiModelErr.message);
                 }
-            } catch (geminiErr) {
-                console.error('[Resume Upload] Gemini extraction failed:', geminiErr.message);
-                console.error('[Resume Upload] Gemini stack:', geminiErr.stack);
-                // Use empty profile
-                structuredData = {
-                    name: "",
-                    email: "",
-                    phone: "",
-                    githubUrl: "",
-                    linkedinUrl: "",
-                    technicalSkills: [],
-                    skills: [],
-                    experience: [],
-                    education: [],
-                    projects: [],
-                    extraCurricular: [],
-                    summary: "Resume uploaded. Please edit profile to add details."
-                };
             }
         } else {
-            console.warn('[Resume Upload] GEMINI_API_KEY not configured');
-            structuredData = {
-                name: "",
-                email: "",
-                phone: "",
-                githubUrl: "",
-                linkedinUrl: "",
-                technicalSkills: [],
-                skills: [],
-                experience: [],
-                education: [],
-                projects: [],
-                extraCurricular: [],
-                summary: "Resume uploaded. Please edit profile manually."
-            };
+            console.warn('[Resume Upload] GEMINI_API_KEY not configured in environment');
+        }
         }
 
         console.log('[Resume Upload] Merging skills...');
