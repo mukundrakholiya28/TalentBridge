@@ -8,6 +8,10 @@ const __dirname  = path.dirname(__filename);
 const nextConfig = {
   reactStrictMode: false,
 
+  outputFileTracingIncludes: {
+    '/api/[...path]': ['./server/**/*'],
+  },
+
   serverExternalPackages: [
     '@xenova/transformers',
     'onnxruntime-node',
