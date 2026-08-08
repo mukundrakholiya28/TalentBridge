@@ -74,6 +74,12 @@ async function buildExpressApp(): Promise<ExpressApp> {
 
   app.post("/api/upload-resume", authMiddleware, upload.single("resume"), uploadResume);
 
+  // Express Error Handler
+  app.use((err: any, _req: any, res: any, _next: any) => {
+    console.error("[Express API Error]", err);
+    res.status(500).json({ success: false, error: err?.message || "Internal Server Error" });
+  });
+
   cachedApp = app as unknown as ExpressApp;
   return cachedApp;
 }
