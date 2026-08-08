@@ -8,6 +8,20 @@
  */
 import { NextRequest, NextResponse } from "next/server";
 
+// Static imports to ensure Webpack and Vercel NFT trace and bundle these dependencies into the function environment
+import "@supabase/supabase-js";
+import "bcryptjs";
+import "jsonwebtoken";
+import "express";
+import "cors";
+import "multer";
+import "uuid";
+import "dotenv";
+import "google-auth-library";
+import "@google/genai";
+import "pusher";
+import "pdf-parse";
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 type ExpressApp = (req: any, res: any, next: () => void) => void;
 

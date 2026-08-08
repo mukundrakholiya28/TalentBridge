@@ -13,25 +13,7 @@ const nextConfig = {
     '/api': ['./server/**/*'],
   },
 
-  // These packages are require()'d at runtime inside the API route handler.
-  // Listing them here tells Next.js NOT to bundle them with webpack —
-  // they are loaded directly from node_modules by Node.js at request time.
-  serverExternalPackages: [
-    '@xenova/transformers',
-    '@supabase/supabase-js',
-    'pdf-parse',
-    'bcryptjs',
-    'jsonwebtoken',
-    'express',
-    'cors',
-    'multer',
-    'uuid',
-    'socket.io',
-    'dotenv',
-    'google-auth-library',
-    '@google/genai',
-    'pusher',
-  ],
+
 
   webpack: (config) => {
     // Path aliases used by the frontend (src/)
