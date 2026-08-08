@@ -20,27 +20,13 @@ const { analyzeResume } = require("../utils/resumeAnalyzer");
 const { chunkResume } = require("../utils/resumeChunker");
 
 const cleanText = (text = "") => text.replace(/\s+/g, " ").trim();
-const PROFILE_REQUIREMENTS = [
-    "Name",
-    "Email ID",
-    "Phone Number",
-    "GitHub Profile Link",
-    "LinkedIn Profile Link",
-    "Education (all entries)",
-    "Experience (all entries; each with one-line description)",
-    "Projects (all entries; each with one-line description)",
-    "Technical Skills (all)",
-    "Extra Curricular (all)"
-];
+
 const normalizeLines = (text = "") =>
     String(text || "")
         .replace(/\r/g, "")
         .split("\n")
         .map((line) => line.trim())
         .filter(Boolean);
-
-const buildFormattedText = (text = "") =>
-    normalizeLines(text).join("\n");
 
 const parsePdfBuffer = async (buffer) => {
     try {
@@ -124,132 +110,15 @@ const safeSkills = (arr) => {
     return [...new Set(arr.map((x) => String(x || "").trim()).filter(Boolean))];
 };
 
-const extractSectionsFallback = (text) => {
-    const lines = normalizeLines(text);
-    const sections = {
-        experience: [],
-        education: [],
-        projects: [],
-        extraCurricular: []
-    };
-
-    const headingMatchers = {
-        experience: /(experience|work history|employment)/i,
-        education: /(education|academics?)/i,
-        projects: /(projects?)/i,
-        extraCurricular: /(extra.?curricular|activities|positions of responsibility|leadership|achievements)/i
-    };
-
-    let current = null;
-    for (const line of lines) {
-        const lower = line.toLowerCase();
-        let switched = false;
-        for (const [key, re] of Object.entries(headingMatchers)) {
-            if (re.test(lower) && line.length < 60) {
-                current = key;
-                switched = true;
-                break;
-            }
-        }
-        if (switched) continue;
-        if (!current) continue;
-        sections[current].push(line);
-    }
-
-    const stripBullet = (value) => String(value || "").replace(/^[\-\u2022•\s]+/, "").trim();
-
-    const experience = sections.experience
-        .map(stripBullet)
-        .filter(Boolean)
-        .map((line) => {
-            const parts = line.split(/\s*[—-]\s*/);
-            const left = parts[0] || "";
-            const desc = parts.slice(1).join(" - ").trim() || line;
-            const periodMatch = left.match(/\b(19|20)\d{2}\s*[-–—]?\s*(present|current|(19|20)\d{2})?\b/i);
-            const period = periodMatch ? periodMatch[0] : "";
-            const leftWithoutPeriod = period ? left.replace(periodMatch[0], "").trim() : left.trim();
-            const words = leftWithoutPeriod.split(/\s+/).filter(Boolean);
-            return {
-                title: words.slice(-2).join(" ") || "",
-                company: words.slice(0, Math.max(0, words.length - 2)).join(" "),
-                period,
-                description: desc
-            };
-        });
-
-    const education = sections.education
-        .map(stripBullet)
-        .filter(Boolean)
-        .map((line) => {
-            const yearMatch = line.match(/\b(19|20)\d{2}\b/);
-            return {
-                degree: line,
-                institution: "",
-                year: yearMatch ? yearMatch[0] : ""
-            };
-        });
-
-    const projects = [];
-    const projLines = sections.projects.map(stripBullet).filter(Boolean);
-    for (let i = 0; i < projLines.length; i++) {
-        const line = projLines[i];
-        if (/^[\-\u2022•]/.test(sections.projects[i] || "")) continue;
-        let name = line;
-        let description = "";
-        if (line.includes(":")) {
-            const [title, ...rest] = line.split(":");
-            name = title.trim();
-            description = rest.join(":").trim();
-        }
-        const next = projLines[i + 1];
-        if (next && /^(built|developed|engineered|created|implemented|designed|\-)/i.test(next) && !description) {
-            description = stripBullet(next);
-            i += 1;
-        }
-        projects.push({ name, description });
-    }
-
-    const extraCurricular = sections.extraCurricular.map(stripBullet).filter(Boolean);
-
-    return { experience, education, projects, extraCurricular };
-};
-
-const fallbackExtract = (text) => {
-    const emailMatch = text.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-z]{2,}/i);
-    const phoneMatch = text.match(/(\+\d{1,3}\s?)?(\(?\d{3}\)?[\s.-]?)?\d{3}[\s.-]?\d{4}/);
-    const githubMatch = text.match(/https?:\/\/(?:www\.)?github\.com\/[A-Za-z0-9_.-]+/i);
-    const linkedinMatch = text.match(/https?:\/\/(?:www\.)?linkedin\.com\/[^\s)]+/i);
-    return {
-        name: "",
-        email: emailMatch ? emailMatch[0] : "",
-        phone: phoneMatch ? phoneMatch[0] : "",
-        githubUrl: githubMatch ? githubMatch[0] : "",
-        linkedinUrl: linkedinMatch ? linkedinMatch[0] : "",
-        technicalSkills: [],
-        skills: [],
-        experience: [],
-        education: [],
-        projects: [],
-        extraCurricular: [],
-        summary: ""
-    };
-};
-
 const uploadResume = async (req, res) => {
     console.log('[Resume Upload] ========== NEW UPLOAD REQUEST ==========');
     try {
-        console.log('[Resume Upload] Request received');
-        console.log('[Resume Upload] File present:', !!req.file);
-        
         if (!req.file) {
             console.error('[Resume Upload] ERROR: No file in request');
             return res.status(400).json({ success: false, message: "Resume file is required" });
         }
 
         console.log('[Resume Upload] File size:', req.file.size, 'bytes');
-        console.log('[Resume Upload] File mimetype:', req.file.mimetype);
-        console.log('[Resume Upload] User:', req.user?.id || req.user?._id);
-
         console.log('[Resume Upload] Getting candidate context...');
         const context = await getCandidateContext(req);
         if (context.error) {
@@ -259,13 +128,11 @@ const uploadResume = async (req, res) => {
 
         const { user, candidate } = context;
         if (!user || !candidate) {
-            console.error('[Resume Upload] ERROR: Missing user or candidate');
             return res.status(404).json({ success: false, message: "User or candidate not found" });
         }
-        
-        console.log('[Resume Upload] Context retrieved successfully');
+
         let structuredData = {};
-        
+
         if (process.env.GEMINI_API_KEY) {
             const modelsToTry = [
                 process.env.GEMINI_MODEL,
@@ -335,12 +202,8 @@ Fill all available details. Use empty strings or empty arrays for missing fields
                     console.warn(`[Resume Upload] Gemini model ${modelName} failed:`, geminiModelErr.message);
                 }
             }
-        } else {
-            console.warn('[Resume Upload] GEMINI_API_KEY not configured in environment');
-        }
         }
 
-        console.log('[Resume Upload] Merging skills...');
         const mergedSkills = safeSkills([
             ...(candidate.skills || []),
             ...(structuredData.skills || []),
@@ -352,40 +215,29 @@ Fill all available details. Use empty strings or empty arrays for missing fields
             ...mergedSkills
         ]);
 
-        console.log('[Resume Upload] Updating candidate fields...');
-        try {
-            candidate.name = structuredData.name || candidate.name || user.fullName || "";
-            candidate.email = user.email || candidate.email || "";
-            candidate.phone = structuredData.phone || candidate.phone || user.phone || "";
-            candidate.githubUrl = structuredData.githubUrl || candidate.githubUrl || user.githubUrl || "";
-            candidate.linkedinUrl = structuredData.linkedinUrl || candidate.linkedinUrl || user.linkedinUrl || "";
-            candidate.technicalSkills = mergedTechnicalSkills;
-            candidate.skills = mergedSkills;
-            candidate.experience = Array.isArray(structuredData.experience) ? structuredData.experience : (candidate.experience || []);
-            candidate.education = Array.isArray(structuredData.education) ? structuredData.education : (candidate.education || []);
-            candidate.projects = Array.isArray(structuredData.projects) ? structuredData.projects : (candidate.projects || []);
-            candidate.extraCurricular = Array.isArray(structuredData.extraCurricular) ? structuredData.extraCurricular : (candidate.extraCurricular || []);
-            candidate.summary = structuredData.summary || candidate.summary || "";
-            candidate.resumeText = structuredData.summary || "Resume uploaded";
-            candidate.resumePath = req.file.originalname || "";
-            candidate.embedding = []; // Skip embedding for now
-            console.log('[Resume Upload] Candidate fields updated');
-        } catch (fieldErr) {
-            console.error('[Resume Upload] Error updating candidate fields:', fieldErr.message);
-            throw fieldErr;
-        }
+        candidate.name = structuredData.name || candidate.name || user.fullName || "";
+        candidate.email = user.email || candidate.email || "";
+        candidate.phone = structuredData.phone || candidate.phone || user.phone || "";
+        candidate.githubUrl = structuredData.githubUrl || candidate.githubUrl || user.githubUrl || "";
+        candidate.linkedinUrl = structuredData.linkedinUrl || candidate.linkedinUrl || user.linkedinUrl || "";
+        candidate.technicalSkills = mergedTechnicalSkills;
+        candidate.skills = mergedSkills;
+        candidate.experience = Array.isArray(structuredData.experience) ? structuredData.experience : (candidate.experience || []);
+        candidate.education = Array.isArray(structuredData.education) ? structuredData.education : (candidate.education || []);
+        candidate.projects = Array.isArray(structuredData.projects) ? structuredData.projects : (candidate.projects || []);
+        candidate.extraCurricular = Array.isArray(structuredData.extraCurricular) ? structuredData.extraCurricular : (candidate.extraCurricular || []);
+        candidate.summary = structuredData.summary || candidate.summary || "";
+        candidate.resumeText = structuredData.summary || "Resume uploaded";
+        candidate.resumePath = req.file.originalname || "";
 
-        console.log('[Resume Upload] Saving candidate to database...');
         try {
             if (typeof candidate.save === "function") {
                 await candidate.save();
             } else {
                 await Candidate.findByIdAndUpdate(candidate.id || candidate._id, candidate);
             }
-            console.log('[Resume Upload] Candidate saved successfully');
         } catch (candSaveErr) {
-            console.error("Candidate save error:", candSaveErr.message, candSaveErr.stack);
-            // Don't throw - try to continue
+            console.error("Candidate save error:", candSaveErr.message);
         }
 
         user.fullName = candidate.name || user.fullName;
@@ -411,10 +263,6 @@ Fill all available details. Use empty strings or empty arrays for missing fields
             console.warn("User save warning:", userSaveErr.message);
         }
 
-        // Skip chunk processing for now - not critical for basic functionality
-        console.log('[Resume Upload] Skipping chunk processing');
-
-        console.log('[Resume Upload] Success! Returning candidate profile');
         return res.status(200).json({
             success: true,
             message: "Resume uploaded and profile updated successfully",
@@ -422,11 +270,9 @@ Fill all available details. Use empty strings or empty arrays for missing fields
         });
     } catch (error) {
         console.error("[Resume Upload] Critical error:", error);
-        console.error("[Resume Upload] Stack trace:", error.stack);
         return res.status(500).json({
             success: false,
-            message: error?.message || "Failed to process resume. Please try again or contact support.",
-            error: process.env.NODE_ENV === 'development' ? error.message : undefined
+            message: error?.message || "Failed to process resume. Please try again."
         });
     }
 };
@@ -458,11 +304,12 @@ const deleteResume = async (req, res) => {
         }
 
         const { user, candidate } = context;
-        await ResumeChunk.deleteMany({ candidateId: candidate._id });
+        try {
+            await ResumeChunk.deleteMany({ candidateId: candidate._id || candidate.id });
+        } catch (err) {}
 
         candidate.resumeText = "";
         candidate.resumePath = "";
-        candidate.embedding = [];
         candidate.skills = [];
         candidate.technicalSkills = [];
         candidate.experience = [];
@@ -470,7 +317,12 @@ const deleteResume = async (req, res) => {
         candidate.projects = [];
         candidate.extraCurricular = [];
         candidate.summary = "";
-        await candidate.save();
+        
+        if (typeof candidate.save === "function") {
+            await candidate.save();
+        } else {
+            await Candidate.findByIdAndUpdate(candidate.id || candidate._id, candidate);
+        }
 
         user.skills = [];
         user.technicalSkills = [];
@@ -480,7 +332,12 @@ const deleteResume = async (req, res) => {
         user.extraCurricular = [];
         user.bio = "";
         user.resumeUrl = "";
-        await user.save();
+
+        if (typeof user.save === "function") {
+            await user.save();
+        } else {
+            await User.findByIdAndUpdate(user.id || user._id, user);
+        }
 
         return res.status(200).json({
             success: true,

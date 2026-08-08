@@ -19,13 +19,19 @@ const nextConfig = {
 
 
 
-  webpack: (config) => {
+  webpack: (config, { isServer }) => {
     // Path aliases used by the frontend (src/)
     config.resolve.alias = {
       ...config.resolve.alias,
       '@': path.resolve(__dirname, 'src'),
       'lib': path.resolve(__dirname, 'src/app/lib'),
     };
+
+    // Ignore binary .node files during Webpack bundling
+    config.module.rules.push({
+      test: /\.node$/,
+      loader: 'ignore-loader',
+    });
 
     // Node built-ins that have no browser equivalent — tell webpack to skip them
     config.resolve.fallback = {
