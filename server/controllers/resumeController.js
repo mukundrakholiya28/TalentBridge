@@ -1,3 +1,14 @@
+if (typeof globalThis.DOMMatrix === "undefined") {
+  class DOMMatrix {}
+  class DOMMatrixReadOnly {}
+  class DOMPoint {}
+  class DOMRect {}
+  globalThis.DOMMatrix = DOMMatrix;
+  globalThis.DOMMatrixReadOnly = DOMMatrixReadOnly;
+  globalThis.DOMPoint = DOMPoint;
+  globalThis.DOMRect = DOMRect;
+}
+
 const pdfParseLib = require("pdf-parse");
 
 const Candidate = require("../models/Candidate");

@@ -8,9 +8,16 @@
  */
 import { NextRequest, NextResponse } from "next/server";
 
-// Polyfill DOMMatrix for Node.js serverless environment (required by pdf-parse / transformers)
-if (typeof (global as any).DOMMatrix === "undefined") {
-  (global as any).DOMMatrix = class DOMMatrix {};
+// Polyfill DOMMatrix & DOM Web APIs for Node.js serverless environment
+if (typeof (globalThis as any).DOMMatrix === "undefined") {
+  class DOMMatrix {}
+  class DOMMatrixReadOnly {}
+  class DOMPoint {}
+  class DOMRect {}
+  (globalThis as any).DOMMatrix = DOMMatrix;
+  (globalThis as any).DOMMatrixReadOnly = DOMMatrixReadOnly;
+  (globalThis as any).DOMPoint = DOMPoint;
+  (globalThis as any).DOMRect = DOMRect;
 }
 
 // ─── Types ────────────────────────────────────────────────────────────────────
