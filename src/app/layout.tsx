@@ -6,7 +6,18 @@ import Script from "next/script";
 
 export const metadata: Metadata = {
   title: "TalentBridge — AI-Powered Recruitment Platform",
-  description: "TalentBridge connects job seekers with employers using AI-powered job matching, resume analysis, semantic candidate search, online assessments, and Google Calendar interview scheduling.",
+  description:
+    "TalentBridge is an AI-powered recruitment platform that connects job seekers with employers. Candidates can upload resumes, get AI-matched to jobs, track applications, take assessments, and receive offer letters. Recruiters can post jobs, search candidates with semantic AI, schedule interviews via Google Calendar, and manage the full hiring pipeline.",
+  keywords: [
+    "TalentBridge",
+    "AI recruitment platform",
+    "job matching",
+    "resume analysis",
+    "hiring platform",
+    "job search",
+    "candidate tracking",
+    "ATS",
+  ],
   icons: {
     icon: "/favicon.png",
   },
@@ -15,7 +26,8 @@ export const metadata: Metadata = {
   },
   openGraph: {
     title: "TalentBridge — AI-Powered Recruitment Platform",
-    description: "TalentBridge connects job seekers with employers using AI-powered matching, resume analysis, and automated hiring tools.",
+    description:
+      "TalentBridge connects job seekers with employers using AI-powered matching, resume analysis, semantic candidate search, and automated hiring tools.",
     url: "https://console-talent-bridge.vercel.app",
     siteName: "TalentBridge",
     type: "website",

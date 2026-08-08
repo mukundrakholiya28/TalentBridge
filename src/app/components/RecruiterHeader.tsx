@@ -64,9 +64,9 @@ export function RecruiterHeader() {
             className="flex items-center gap-2 cursor-pointer"
             onClick={() => navigate("/recruiter/dashboard")}
           >
-            <img src={typeof logo === "string" ? logo : (logo as any).src} alt="CONSOLE | TalentBridge" className="w-10 h-10" />
+            <img src={typeof logo === "string" ? logo : (logo as any).src} alt="TalentBridge" className="w-10 h-10" />
             <span className="text-xl font-bold text-gray-900 dark:text-white">
-              CONSOLE | TalentBridge<span className="hidden sm:inline"> - Recruiter</span>
+              TalentBridge<span className="hidden sm:inline"> - Recruiter</span>
             </span>
           </div>
           <div className="flex items-center gap-4">

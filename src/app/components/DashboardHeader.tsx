@@ -57,8 +57,8 @@ export function DashboardHeader() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           <div className="flex items-center gap-2 cursor-pointer" onClick={() => navigate("/candidate/dashboard")}>
-            <img src={typeof logo === "string" ? logo : (logo as any).src} alt="CONSOLE | TalentBridge" className="w-10 h-10" />
-            <span className="text-xl font-bold text-gray-900 dark:text-white">CONSOLE | TalentBridge</span>
+            <img src={typeof logo === "string" ? logo : (logo as any).src} alt="TalentBridge" className="w-10 h-10" />
+            <span className="text-xl font-bold text-gray-900 dark:text-white">TalentBridge</span>
           </div>
 
           <div className="flex items-center gap-4">

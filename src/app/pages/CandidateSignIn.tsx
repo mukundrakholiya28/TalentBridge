@@ -68,11 +68,11 @@ export function CandidateSignIn() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <Link to="/" className="flex items-center gap-2">
-              <img src={typeof logo === "string" ? logo : (logo as any).src} alt="CONSOLE | TalentBridge" className="w-10 h-10" />
-              <span className="text-xl font-bold text-gray-900 dark:text-white">CONSOLE | TalentBridge</span>
+              <img src={typeof logo === "string" ? logo : (logo as any).src} alt="TalentBridge" className="w-10 h-10" />
+              <span className="text-xl font-bold text-gray-900 dark:text-white">TalentBridge</span>
             </Link>
             <div className="flex items-center gap-4">
-              <span className="text-sm text-gray-600 dark:text-gray-400">New to CONSOLE?</span>
+              <span className="text-sm text-gray-600 dark:text-gray-400">New to TalentBridge?</span>
               <Link
                 to="/candidate/signup"
                 className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700"
