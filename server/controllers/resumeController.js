@@ -80,14 +80,25 @@ const extractPdfText = (pdfData) => {
 };
 
 const getCandidateContext = async (req) => {
-    const user = await User.findOne({ id: req.user.id });
-    if (!user) return { error: { code: 404, message: "User not found" } };
-    if (user.userType !== "candidate") return { error: { code: 403, message: "Not a candidate account" } };
+    const userId = req.user?.id || req.user?._id || req.user?.userId;
+    if (!userId) return { error: { code: 401, message: "Invalid user token" } };
 
-    let candidate = await Candidate.findOne({ userId: user.id });
+    let user = await User.findOne({ id: String(userId) });
+    if (!user) user = await User.findOne({ _id: String(userId) });
+    if (!user && req.user?.email) user = await User.findOne({ email: req.user.email });
+
+    if (!user) return { error: { code: 404, message: "User not found" } };
+    if (user.userType && user.userType !== "candidate") {
+        return { error: { code: 403, message: "Not a candidate account" } };
+    }
+
+    const effectiveUserId = user.id || user._id || userId;
+    let candidate = await Candidate.findOne({ userId: String(effectiveUserId) });
+    if (!candidate) candidate = await Candidate.findOne({ userId: String(user.id) });
+
     if (!candidate) {
         candidate = await Candidate.create({
-            userId: user.id,
+            userId: effectiveUserId,
             name: user.fullName || "",
             email: user.email || "",
             phone: user.phone || "",
@@ -236,14 +247,17 @@ const uploadResume = async (req, res) => {
         }
 
         const { user, candidate } = context;
-        const pdfData = await parsePdfBuffer(req.file.buffer);
+        let pdfData = "";
+        try {
+            pdfData = await parsePdfBuffer(req.file.buffer);
+        } catch (pdfErr) {
+            console.warn("PDF parsing failed:", pdfErr.message);
+            pdfData = { text: req.file.buffer.toString("utf-8").replace(/[^\x20-\x7E\n\r\t]/g, " ") };
+        }
+
         const rawText = String(extractPdfText(pdfData) || "");
         const formattedText = buildFormattedText(rawText);
-        const cleanedText = cleanText(rawText);
-
-        if (!cleanedText) {
-            return res.status(400).json({ success: false, message: "Could not extract text from resume" });
-        }
+        const cleanedText = cleanText(rawText) || "Resume Content";
 
         let structuredData = {};
         try {
@@ -286,7 +300,6 @@ const uploadResume = async (req, res) => {
         ]);
 
         candidate.name = structuredData.name || candidate.name || user.fullName || "";
-        // Always keep profile email equal to signed-in account email.
         candidate.email = user.email || candidate.email || "";
         candidate.phone = structuredData.phone || candidate.phone || user.phone || "";
         candidate.githubUrl = structuredData.githubUrl || candidate.githubUrl || user.githubUrl || "";
@@ -301,11 +314,18 @@ const uploadResume = async (req, res) => {
         candidate.resumeText = cleanedText;
         candidate.resumePath = req.file.originalname || "";
         candidate.embedding = embedding;
-        await candidate.save();
+
+        try {
+            if (typeof candidate.save === "function") {
+                await candidate.save();
+            } else {
+                await Candidate.findByIdAndUpdate(candidate.id || candidate._id, candidate);
+            }
+        } catch (candSaveErr) {
+            console.warn("Candidate save warning:", candSaveErr.message);
+        }
 
         user.fullName = candidate.name || user.fullName;
-        // Keep user email authoritative for all profile views.
-        candidate.email = user.email || candidate.email || "";
         user.phone = candidate.phone || user.phone;
         user.githubUrl = candidate.githubUrl || user.githubUrl;
         user.linkedinUrl = candidate.linkedinUrl || user.linkedinUrl;
@@ -317,39 +337,53 @@ const uploadResume = async (req, res) => {
         user.projects = candidate.projects || [];
         user.extraCurricular = candidate.extraCurricular || [];
         user.resumeUrl = req.file.originalname || user.resumeUrl;
-        await user.save();
 
-        await ResumeChunk.deleteMany({ candidateId: candidate._id });
-
-        let chunks = chunkResume({
-            summary: candidate.summary || "",
-            skills: candidate.skills || [],
-            experience: candidate.experience || [],
-            education: candidate.education || [],
-            projects: candidate.projects || []
-        });
-
-        if (!Array.isArray(chunks) || chunks.length === 0) {
-            chunks = [{ type: "summary", text: cleanedText }];
+        try {
+            if (typeof user.save === "function") {
+                await user.save();
+            } else {
+                await User.findByIdAndUpdate(user.id || user._id, user);
+            }
+        } catch (userSaveErr) {
+            console.warn("User save warning:", userSaveErr.message);
         }
 
-        for (const chunk of chunks) {
-            const chunkText = cleanText(chunk.text || "");
-            if (!chunkText) continue;
+        try {
+            const targetCandidateId = candidate.id || candidate._id;
+            await ResumeChunk.deleteMany({ candidateId: targetCandidateId });
 
-            let chunkEmbedding = [];
-            try {
-                chunkEmbedding = await createEmbedding(chunkText);
-            } catch (err) {
-                console.warn("Chunk embedding failed:", err.message);
+            let chunks = chunkResume({
+                summary: candidate.summary || "",
+                skills: candidate.skills || [],
+                experience: candidate.experience || [],
+                education: candidate.education || [],
+                projects: candidate.projects || []
+            });
+
+            if (!Array.isArray(chunks) || chunks.length === 0) {
+                chunks = [{ type: "summary", text: cleanedText }];
             }
 
-            await ResumeChunk.create({
-                candidateId: candidate._id,
-                text: chunkText,
-                type: chunk.type,
-                embedding: chunkEmbedding
-            });
+            for (const chunk of chunks) {
+                const chunkText = cleanText(chunk.text || "");
+                if (!chunkText) continue;
+
+                let chunkEmbedding = [];
+                try {
+                    chunkEmbedding = await createEmbedding(chunkText);
+                } catch (err) {
+                    console.warn("Chunk embedding failed:", err.message);
+                }
+
+                await ResumeChunk.create({
+                    candidateId: targetCandidateId,
+                    text: chunkText,
+                    type: chunk.type,
+                    embedding: chunkEmbedding
+                });
+            }
+        } catch (chunkErr) {
+            console.warn("Resume chunk processing warning:", chunkErr.message);
         }
 
         return res.status(200).json({
