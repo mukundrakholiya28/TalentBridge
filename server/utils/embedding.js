@@ -7,8 +7,6 @@
  * These embeddings are used for semantic search in TalentBridge.
  */
 
-const { pipeline } = require("@xenova/transformers");
-
 // Singleton pipeline instance to avoid loading the model multiple times
 let embedderPipeline = null;
 
@@ -22,6 +20,7 @@ const MODEL_NAME = "Xenova/all-MiniLM-L6-v2";
 async function getEmbedder() {
     if (!embedderPipeline) {
         console.log(`Loading local embedding model (${MODEL_NAME})...`);
+        const { pipeline } = await import("@xenova/transformers");
         embedderPipeline = await pipeline("feature-extraction", MODEL_NAME, {
             // Optional: specify a cache directory if needed, defaults to ~/.cache/huggingface/
         });
