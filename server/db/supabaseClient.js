@@ -183,9 +183,10 @@ class LocalMemoryStore {
 const localStore = new LocalMemoryStore();
 
 const getClient = () => {
-    if (process.env.USE_SUPABASE === "true" && isConfigured && supabase) {
+    if (isConfigured && supabase) {
         return supabase;
     }
+    console.warn("⚠️ Using in-memory LocalMemoryStore — Supabase credentials not configured");
     return localStore;
 };
 

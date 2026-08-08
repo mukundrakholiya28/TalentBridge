@@ -66,58 +66,12 @@ Rules:
  */
 const getCandidateContext = async (req) => {
     const userId = req.user?.id || req.user?._id || req.user?.userId;
-    console.log("[Resume] JWT payload:", JSON.stringify(req.user));
-    console.log("[Resume] Resolved userId:", userId);
-
     if (!userId) return { error: { code: 401, message: "Invalid user token" } };
 
-    // Check which DB client is active
-    const { getClient, isConfigured } = require("../db/supabaseClient");
-    const client = getClient();
-    const isRealSupabase = isConfigured && process.env.USE_SUPABASE === "true";
-    console.log("[Resume] DB client:", isRealSupabase ? "Supabase (real)" : "LocalMemoryStore (in-memory)");
-    console.log("[Resume] USE_SUPABASE env:", process.env.USE_SUPABASE);
-    console.log("[Resume] isConfigured:", isConfigured);
-
-    // Try direct Supabase query for better error reporting
-    let user = null;
-    try {
-        console.log("[Resume] Looking up user by id:", userId);
-        user = await User.findOne({ id: String(userId) });
-        console.log("[Resume] findOne({id}) result:", user ? `Found: ${user.email}` : "null");
-    } catch (err) {
-        console.error("[Resume] findOne({id}) error:", err.message);
-    }
-
+    // Find user by id or email
+    let user = await User.findOne({ id: String(userId) });
     if (!user && req.user?.email) {
-        try {
-            console.log("[Resume] Trying email lookup:", req.user.email);
-            user = await User.findOne({ email: req.user.email });
-            console.log("[Resume] findOne({email}) result:", user ? `Found: ${user.id}` : "null");
-        } catch (err) {
-            console.error("[Resume] findOne({email}) error:", err.message);
-        }
-    }
-
-    // Last resort: try a direct Supabase query bypassing the model
-    if (!user && isRealSupabase) {
-        try {
-            console.log("[Resume] Trying direct Supabase query...");
-            const { data, error } = await client
-                .from("users")
-                .select("*")
-                .eq("id", String(userId))
-                .limit(1);
-            console.log("[Resume] Direct query result:", error ? `Error: ${error.message}` : `Rows: ${data?.length || 0}`);
-            if (data && data[0]) {
-                // Use the toCamelCase from models to normalize
-                const { toCamelCase } = require("../db/models");
-                user = toCamelCase(data[0]);
-                console.log("[Resume] Direct query found user:", user.email);
-            }
-        } catch (err) {
-            console.error("[Resume] Direct Supabase query error:", err.message);
-        }
+        user = await User.findOne({ email: req.user.email });
     }
 
     if (!user) return { error: { code: 404, message: "User not found" } };
@@ -129,8 +83,6 @@ const getCandidateContext = async (req) => {
 
     // Find or create candidate record
     let candidate = await Candidate.findOne({ userId: String(effectiveUserId) });
-    if (!candidate) candidate = await Candidate.findOne({ userId: String(user.id) });
-
     if (!candidate) {
         candidate = await Candidate.create({
             userId: effectiveUserId,

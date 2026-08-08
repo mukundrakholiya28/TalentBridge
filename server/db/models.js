@@ -62,12 +62,32 @@ function toSnakeCase(obj) {
     return row;
 }
 
-const withTimeout = (promise, ms = 3000) => {
+const QUERY_TIMEOUT_MS = 10000; // 10s for Vercel cold starts
+
+const withTimeout = (promise, ms = QUERY_TIMEOUT_MS) => {
     return Promise.race([
         promise,
         new Promise((_, reject) => setTimeout(() => reject(new Error("Supabase Query Timeout")), ms))
     ]);
 };
+
+/**
+ * Convert a MongoDB-style $or query into a Supabase .or() filter string.
+ * E.g. $or: [{ email: "a" }, { username: "b" }] → "email.eq.a,username.eq.b"
+ */
+function buildOrFilter(orArray) {
+    if (!Array.isArray(orArray) || !orArray.length) return null;
+    const parts = [];
+    for (const condition of orArray) {
+        const snake = toSnakeCase(condition);
+        for (const [key, value] of Object.entries(snake)) {
+            if (value !== undefined && value !== null) {
+                parts.push(`${key}.eq.${value}`);
+            }
+        }
+    }
+    return parts.length ? parts.join(",") : null;
+}
 
 // Base Supabase Model Class
 class SupabaseModel {
@@ -80,42 +100,37 @@ class SupabaseModel {
     }
 
     async find(query = {}) {
-        try {
-            let q = this.client.from(this.tableName).select("*");
-            const snakeQuery = toSnakeCase(query);
+        let q = this.client.from(this.tableName).select("*");
+        const snakeQuery = toSnakeCase(query);
 
-            for (const [key, value] of Object.entries(snakeQuery)) {
-                if (value !== undefined && value !== null) {
-                    if (typeof value === "object" && !Array.isArray(value)) {
-                        if (value.$ne !== undefined) q = q.neq(key, value.$ne);
-                        if (value.$in !== undefined) q = q.in(key, value.$in);
-                    } else {
-                        q = q.eq(key, value);
-                    }
-                }
+        // Handle $or queries (MongoDB compat)
+        if (query.$or) {
+            const orFilter = buildOrFilter(query.$or);
+            if (orFilter) {
+                q = q.or(orFilter);
             }
-
-            const { data, error } = await withTimeout(q, 3000);
-            if (error) throw new Error(error.message);
-            return (data || []).map(r => toCamelCase(r, this));
-        } catch (err) {
-            console.warn(`⚠️ Supabase query fallback for ${this.tableName}:`, err.message);
-            const { localStore } = require("./supabaseClient");
-            let q = localStore.from(this.tableName).select("*");
-            const snakeQuery = toSnakeCase(query);
-            for (const [key, value] of Object.entries(snakeQuery)) {
-                if (value !== undefined && value !== null) {
-                    if (typeof value === "object" && !Array.isArray(value)) {
-                        if (value.$ne !== undefined) q = q.neq(key, value.$ne);
-                        if (value.$in !== undefined) q = q.in(key, value.$in);
-                    } else {
-                        q = q.eq(key, value);
-                    }
-                }
-            }
-            const res = await q.exec();
-            return (res.data || []).map(r => toCamelCase(r, this));
+            // Remove $or from the regular filter loop
+            delete snakeQuery.$or;
         }
+
+        for (const [key, value] of Object.entries(snakeQuery)) {
+            if (key.startsWith("$")) continue; // skip any remaining Mongo operators
+            if (value !== undefined && value !== null) {
+                if (typeof value === "object" && !Array.isArray(value)) {
+                    if (value.$ne !== undefined) q = q.neq(key, value.$ne);
+                    if (value.$in !== undefined) q = q.in(key, value.$in);
+                } else {
+                    q = q.eq(key, value);
+                }
+            }
+        }
+
+        const { data, error } = await withTimeout(q);
+        if (error) {
+            console.error(`❌ Supabase query error for ${this.tableName}:`, error.message);
+            throw new Error(error.message);
+        }
+        return (data || []).map(r => toCamelCase(r, this));
     }
 
     async findOne(query = {}) {
@@ -134,20 +149,15 @@ class SupabaseModel {
             rowData.id = crypto.randomUUID();
         }
 
-        try {
-            const { data: inserted, error } = await withTimeout(
-                this.client.from(this.tableName).insert(rowData).select(),
-                3000
-            );
-            if (error) throw new Error(error.message);
-            const result = Array.isArray(inserted) ? inserted[0] : inserted;
-            return toCamelCase(result || rowData, this);
-        } catch (err) {
-            console.warn(`⚠️ Supabase create fallback for ${this.tableName}:`, err.message);
-            const { localStore } = require("./supabaseClient");
-            const res = await localStore.from(this.tableName).insert(rowData);
-            return toCamelCase(res.data || rowData, this);
+        const { data: inserted, error } = await withTimeout(
+            this.client.from(this.tableName).insert(rowData).select()
+        );
+        if (error) {
+            console.error(`❌ Supabase create error for ${this.tableName}:`, error.message);
+            throw new Error(error.message);
         }
+        const result = Array.isArray(inserted) ? inserted[0] : inserted;
+        return toCamelCase(result || rowData, this);
     }
 
     async findByIdAndUpdate(id, updates, options = { new: true }) {
@@ -155,29 +165,19 @@ class SupabaseModel {
         const rowUpdates = toSnakeCase(updates.$set || updates);
         delete rowUpdates.id;
 
-        try {
-            const { data, error } = await withTimeout(
-                this.client
-                    .from(this.tableName)
-                    .update(rowUpdates)
-                    .eq("id", String(id))
-                    .select(),
-                3000
-            );
-            if (error) throw new Error(error.message);
-            const result = Array.isArray(data) ? data[0] : data;
-            return toCamelCase(result, this);
-        } catch (err) {
-            console.warn(`⚠️ Supabase update fallback for ${this.tableName}:`, err.message);
-            const { localStore } = require("./supabaseClient");
-            const res = await localStore
+        const { data, error } = await withTimeout(
+            this.client
                 .from(this.tableName)
                 .update(rowUpdates)
                 .eq("id", String(id))
-                .exec();
-            const result = Array.isArray(res.data) ? res.data[0] : res.data;
-            return toCamelCase(result, this);
+                .select()
+        );
+        if (error) {
+            console.error(`❌ Supabase update error for ${this.tableName}:`, error.message);
+            throw new Error(error.message);
         }
+        const result = Array.isArray(data) ? data[0] : data;
+        return toCamelCase(result, this);
     }
 
     async findOneAndUpdate(query, updates, options = { new: true, upsert: false }) {
@@ -199,26 +199,17 @@ class SupabaseModel {
         const target = await this.findById(id);
         if (!target) return null;
 
-        try {
-            const { error } = await withTimeout(
-                this.client
-                    .from(this.tableName)
-                    .delete()
-                    .eq("id", String(id)),
-                3000
-            );
-            if (error) throw new Error(error.message);
-            return target;
-        } catch (err) {
-            console.warn(`⚠️ Supabase delete fallback for ${this.tableName}:`, err.message);
-            const { localStore } = require("./supabaseClient");
-            await localStore
+        const { error } = await withTimeout(
+            this.client
                 .from(this.tableName)
                 .delete()
                 .eq("id", String(id))
-                .exec();
-            return target;
+        );
+        if (error) {
+            console.error(`❌ Supabase delete error for ${this.tableName}:`, error.message);
+            throw new Error(error.message);
         }
+        return target;
     }
 
     async countDocuments(query = {}) {

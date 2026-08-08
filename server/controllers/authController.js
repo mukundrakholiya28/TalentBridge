@@ -252,9 +252,11 @@ const login = async (req, res) => {
     const { email, identifier, password } = req.body;
     const loginIdentifier = String(identifier || email || "").trim().toLowerCase();
 
-    const user = await User.findOne({
-      $or: [{ email: loginIdentifier }, { username: loginIdentifier }]
-    });
+    // Try email first, then username
+    let user = await User.findOne({ email: loginIdentifier });
+    if (!user) {
+      user = await User.findOne({ username: loginIdentifier });
+    }
 
     if (!user) {
       return res.status(400).json({
@@ -382,7 +384,11 @@ const getSession = async (req, res) => {
 
   try {
 
-    const user = await User.findOne({ id: req.user.id }).select("-password");
+    const user = await User.findOne({ id: req.user.id });
+    // Strip password from response (Supabase doesn't support .select('-field'))
+    if (user && user.password) {
+      delete user.password;
+    }
 
     if (!user) {
       return res.status(404).json({
