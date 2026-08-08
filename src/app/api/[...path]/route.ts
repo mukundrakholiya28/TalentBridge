@@ -20,7 +20,6 @@ import "dotenv";
 import "google-auth-library";
 import "@google/genai";
 import "pusher";
-import "pdf-parse";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type ExpressApp = (req: any, res: any, next: () => void) => void;
