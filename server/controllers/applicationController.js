@@ -36,10 +36,9 @@ const applyToJob = async (req, res) => {
             return res.status(400).json({ success: false, message: "Job ID required" });
         }
 
-        // Find job by custom UUID `id` OR by MongoDB _id
         let job = await Job.findOne({ id: jobId });
-        if (!job && mongoose.Types.ObjectId.isValid(jobId)) {
-            job = await Job.findById(jobId);
+        if (!job) {
+            try { job = await Job.findById(jobId); } catch (_) {}
         }
 
         if (!job) {
@@ -220,8 +219,8 @@ const getApplicationsForJob = async (req, res) => {
         const recruiterUser = await User.findOne({ id: req.user.id });
 
         let job = await Job.findOne({ id: jobId });
-        if (!job && mongoose.Types.ObjectId.isValid(jobId)) {
-            job = await Job.findById(jobId);
+        if (!job) {
+            try { job = await Job.findById(jobId); } catch (_) {}
         }
 
         if (!job) {

@@ -75,11 +75,10 @@ const getConversations = async (req, res) => {
             const partnerId = msg.senderId === userId ? msg.receiverId : msg.senderId;
 
             if (!conversationsMap.has(partnerId)) {
-                // Look up partner user by UUID `id` or by MongoDB _id
-                const queryPartner = mongoose.Types.ObjectId.isValid(partnerId)
-                    ? { $or: [{ id: partnerId }, { _id: partnerId }] }
-                    : { id: partnerId };
-                const partner = await User.findOne(queryPartner);
+                let partner = await User.findOne({ id: partnerId });
+                if (!partner) {
+                    try { partner = await User.findById(partnerId); } catch (_) {}
+                }
 
                 if (partner) {
                     conversationsMap.set(partnerId, {
