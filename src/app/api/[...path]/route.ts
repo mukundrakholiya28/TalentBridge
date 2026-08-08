@@ -119,25 +119,32 @@ async function handler(
     const queryStr = req.nextUrl.search || "";
     const url = req.nextUrl.pathname + queryStr;
 
-    const { PassThrough } = require("stream");
+    const { Readable } = require("stream");
 
     return new Promise<NextResponse>((resolve) => {
       const chunks: Buffer[] = [];
       const resHeaders: Record<string, string> = {};
       let status = 200;
 
-      const mockReq = new PassThrough();
+      let dataPushed = false;
+      const mockReq: any = new Readable({
+        read() {
+          if (!dataPushed) {
+            dataPushed = true;
+            if (bodyBuf.length > 0) {
+              this.push(bodyBuf);
+            }
+            this.push(null);
+          }
+        }
+      });
+
       mockReq.method = req.method;
       mockReq.url = url;
       mockReq.originalUrl = url;
       mockReq.headers = headers;
-      (mockReq as any).socket = { remoteAddress: "127.0.0.1" };
-      (mockReq as any).connection = {};
-
-      if (bodyBuf.length > 0) {
-        mockReq.write(bodyBuf);
-      }
-      mockReq.end();
+      mockReq.socket = { remoteAddress: "127.0.0.1" };
+      mockReq.connection = {};
 
       const mockRes: any = {
         get statusCode() { return status; },
