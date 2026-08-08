@@ -1,15 +1,19 @@
 const { createClient } = require("@supabase/supabase-js");
 
-const supabaseUrl = process.env.SUPABASE_URL || "https://your-supabase-project.supabase.co";
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_KEY || "your-supabase-service-role-key";
+const rawUrl = process.env.SUPABASE_URL || "";
+const rawKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_KEY || "";
+
+const isRealUrl = (url) => url && !url.includes("your-supabase-project") && (url.startsWith("http://") || url.startsWith("https://"));
+const isRealKey = (key) => key && !key.includes("your-supabase-service-role-key") && !key.includes("your-supabase-key") && key.length > 20;
 
 let supabase = null;
 let isConfigured = false;
 
-if (process.env.SUPABASE_URL && (process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_KEY)) {
+if (isRealUrl(rawUrl) && isRealKey(rawKey)) {
     try {
-        supabase = createClient(supabaseUrl, supabaseKey, {
-            auth: { persistSession: false }
+        supabase = createClient(rawUrl, rawKey, {
+            auth: { persistSession: false },
+            global: { fetch: (...args) => fetch(...args) }
         });
         isConfigured = true;
     } catch (err) {
