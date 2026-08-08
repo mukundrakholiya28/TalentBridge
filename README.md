@@ -9,6 +9,7 @@
 - [🛠️ Tech Stack](#-tech-stack)
 - [📐 System Architecture](#-system-architecture)
 - [⚙️ Installation & Setup](#-installation--setup)
+- [🔐 Google OAuth Setup](#-google-oauth-setup)
 - [🔄 AI Workflow](#-ai-workflow)
 - [📁 Project Structure](#-project-structure)
 - [🔌 API Reference](#-api-reference)
@@ -147,6 +148,37 @@ npm run dev
 ```
 
 The frontend will be available at `http://localhost:5173` and the backend API at `http://localhost:5000`.
+
+---
+
+## 🔐 Google OAuth Setup
+
+TalentBridge uses Google OAuth 2.0 for authentication and Google Calendar API for scheduling. For complete setup instructions, see:
+
+📖 **[GOOGLE_OAUTH_SETUP.md](./GOOGLE_OAUTH_SETUP.md)** - Comprehensive setup guide with step-by-step instructions
+
+### Quick Setup
+1. Create a Google Cloud Project
+2. Enable Google+ API and Google Calendar API
+3. Configure OAuth consent screen with required scopes
+4. Create OAuth 2.0 credentials (Web application)
+5. Add redirect URIs: `http://localhost:5000/auth/oauth-callback` (dev) and production URL
+6. Set environment variables in `.env` files
+
+### Additional Resources
+- 📋 **[OAUTH_VERIFICATION_CHECKLIST.md](./OAUTH_VERIFICATION_CHECKLIST.md)** - Complete verification checklist
+- 📝 **[OAUTH_QUICK_REFERENCE.md](./OAUTH_QUICK_REFERENCE.md)** - Quick reference for developers
+- 🔧 **[OAUTH_FIXES_SUMMARY.md](./OAUTH_FIXES_SUMMARY.md)** - Recent fixes and improvements
+
+### Critical OAuth Parameters
+```javascript
+// Required for refresh tokens and calendar access
+{
+  access_type: 'offline',  // Get refresh tokens
+  prompt: 'consent',       // Always show consent screen
+  scope: 'openid email profile https://www.googleapis.com/auth/calendar'
+}
+```
 
 ---
 

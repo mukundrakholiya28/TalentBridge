@@ -1,0 +1,12 @@
+"use client";
+
+import { Suspense } from "react";
+import { SendOfferLetter } from "@/app/pages/SendOfferLetter";
+
+export default function Page() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center text-gray-400">Loading...</div>}>
+      <SendOfferLetter />
+    </Suspense>
+  );
+}

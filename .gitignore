@@ -1,3 +1,7 @@
+# Next.js build
+.next/
+out/
+
 # dependencies
 node_modules/
 
@@ -7,6 +11,7 @@ node_modules/
 .env.development
 .env.test
 .env.production
+.env*.local
 
 # logs
 logs
@@ -37,8 +42,5 @@ temp/
 # coverage
 coverage/
 
-# package lock files (optional)
-package-lock.json
-yarn.lock
+# package lock files
 .vercel
-.env*.local

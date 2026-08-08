@@ -1,11 +1,10 @@
 services:
   - type: web
-    name: talentbridge-api
+    name: talentbridge
     runtime: node
     region: oregon
-    rootDir: backend
-    buildCommand: npm install
-    startCommand: node server.js
+    buildCommand: npm install && npm run build
+    startCommand: npm start
     envVars:
       - key: NODE_ENV
         value: production
