@@ -38,10 +38,6 @@ export function getFastPusher(options: FastPusherOptions = {}): Pusher {
     // Connection timeouts
     activityTimeout: 30000,
     pongTimeout: 10000,
-    
-    // Reconnection strategy
-    maxReconnectionAttempts: MAX_RECONNECT_ATTEMPTS,
-    maxReconnectGapInSeconds: 30,
   });
   
   // Connection state monitoring
