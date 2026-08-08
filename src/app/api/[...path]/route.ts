@@ -95,27 +95,19 @@ async function handler(
 
     const url = "/api/" + path.join("/") + req.nextUrl.search;
 
+    const { Readable } = require("stream");
+
     return new Promise<NextResponse>((resolve) => {
       const chunks: Buffer[] = [];
       const resHeaders: Record<string, string> = {};
       let status = 200;
 
-      const mockReq: any = {
-        method:  req.method,
-        url,
-        headers,
-        socket:  { remoteAddress: "127.0.0.1" },
-        connection: {},
-        on(event: string, fn: (data?: any) => void) {
-          if (event === "data") fn(bodyBuf);
-          if (event === "end")  fn();
-          return this;
-        },
-        // needed by multer / body parsers
-        pipe:   () => mockReq,
-        resume: () => mockReq,
-        unpipe: () => mockReq,
-      };
+      const mockReq = Readable.from(bodyBuf) as any;
+      mockReq.method = req.method;
+      mockReq.url = url;
+      mockReq.headers = headers;
+      mockReq.socket = { remoteAddress: "127.0.0.1" };
+      mockReq.connection = {};
 
       const mockRes: any = {
         get statusCode() { return status; },
