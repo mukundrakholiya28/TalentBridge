@@ -170,7 +170,7 @@ class LocalMemoryStore {
 const localStore = new LocalMemoryStore();
 
 const getClient = () => {
-    if (isConfigured && supabase) {
+    if (process.env.USE_SUPABASE === "true" && isConfigured && supabase) {
         return supabase;
     }
     return localStore;
