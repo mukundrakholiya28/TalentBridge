@@ -14,6 +14,7 @@ import {
 import logo from "../../assets/logo.png";
 import { clearAuthSession, setUserRoleForActiveSession, getStoredUser, updateStoredUser } from "../../utils/authStorage";
 import { apiClient } from "../../utils/apiClient";
+import { ThemeToggle } from "./ThemeToggle";
 
 export function RecruiterHeader() {
   const navigate = useNavigate();
@@ -70,6 +71,7 @@ export function RecruiterHeader() {
             </span>
           </div>
           <div className="flex items-center gap-4">
+            <ThemeToggle />
             <button
               onClick={() => navigate("/recruiter/dashboard")}
               className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"

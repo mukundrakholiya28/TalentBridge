@@ -19,6 +19,7 @@ import {
 import { ImageWithFallback } from "../components/figma/ImageWithFallback";
 import logo from "../../assets/logo.png";
 import { getAuthToken, getUserRole } from "../../utils/authStorage";
+import { ThemeToggle } from "../components/ThemeToggle";
 
 export function LandingPage() {
   const navigate = useNavigate();
@@ -161,6 +162,7 @@ export function LandingPage() {
             </nav>
 
             <div className="hidden md:flex items-center gap-3">
+              <ThemeToggle />
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => navigate("/candidate/signin")}

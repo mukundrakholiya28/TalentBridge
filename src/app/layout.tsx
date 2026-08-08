@@ -40,12 +40,12 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" suppressHydrationWarning className="dark">
+    <html lang="en" suppressHydrationWarning>
       <head>
         <Script src="https://accounts.google.com/gsi/client" strategy="lazyOnload" />
       </head>
       <body className="bg-background text-foreground antialiased min-h-screen">
-        <ThemeProvider attribute="class" defaultTheme="dark" forcedTheme="dark">
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
           {children}
           <Toaster position="top-right" />
         </ThemeProvider>
