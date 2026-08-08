@@ -33,8 +33,9 @@ const searchResumeChunks = async (req, res) => {
 
         const queryEmbedding = await createEmbedding(query);
 
-        // Fetch all chunks with embeddings
-        const chunks = await ResumeChunk.find({ embedding: { $exists: true, $ne: [] } });
+        // Fetch all chunks
+        const allChunks = await ResumeChunk.find({});
+        const chunks = allChunks.filter(c => Array.isArray(c.embedding) && c.embedding.length > 0);
 
         // Compute cosine similarity in-memory
         const scored = chunks.map(chunk => ({

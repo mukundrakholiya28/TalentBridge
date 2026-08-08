@@ -58,9 +58,8 @@ const createJob = async (req, res) => {
  */
 const getAllJobs = async (req, res) => {
     try {
-        const jobs = await Job.find({ isOpen: { $ne: false } })
-            .sort({ createdAt: -1 })
-            .populate('recruiter', 'avatarUrl name');
+        let jobs = await Job.find({});
+        jobs = jobs.filter(j => j.isOpen !== false);
         res.status(200).json(jobs);
     } catch (error) {
         console.error("Fetch Jobs Error:", error);
@@ -75,9 +74,9 @@ const getAllJobs = async (req, res) => {
 const getJobById = async (req, res) => {
     try {
         const { id } = req.params;
-        let job = await Job.findOne({ id }).populate('recruiter', 'avatarUrl name');
+        let job = await Job.findOne({ id });
         if (!job) {
-            try { job = await Job.findById(id).populate('recruiter', 'avatarUrl name'); } catch (_) { }
+            try { job = await Job.findById(id); } catch (_) { }
         }
         if (!job) {
             return res.status(404).json({ success: false, message: "Job not found" });
@@ -104,13 +103,14 @@ const semanticSearchJobs = async (req, res) => {
 
         const queryEmbedding = await createEmbedding(query);
 
-        // Fetch jobs with optional location filter
-        let filter = { embedding: { $exists: true, $ne: [] } };
+        // Fetch all open jobs
+        let allJobs = await Job.find({});
+        let jobs = allJobs.filter(j => j.isOpen !== false);
+
         if (location && location.trim() !== '') {
-            filter.location = new RegExp(location.trim(), 'i');
+            const locLower = location.trim().toLowerCase();
+            jobs = jobs.filter(j => String(j.location || "").toLowerCase().includes(locLower));
         }
-        const jobs = await Job.find({ ...filter, isOpen: { $ne: false } })
-            .populate('recruiter', 'avatarUrl name');
 
         // Cosine similarity
         const cosineSimilarity = (a, b) => {

@@ -36,8 +36,8 @@ const searchCandidates = async (req, res) => {
         // Convert recruiter query into embedding
         const queryEmbedding = await createEmbedding(query);
 
-        // Fetch all candidates with embeddings
-        const candidates = await Candidate.find({ embedding: { $exists: true, $ne: [] } }).populate("user", "id");
+        // Fetch all candidates
+        const candidates = await Candidate.find({});
 
         let queryLower = query.toLowerCase();
 
@@ -73,8 +73,8 @@ const searchCandidates = async (req, res) => {
             else if (keywordRegex.test(c.summary || "")) keywordBoost += 0.1;
 
             return {
-                _id: c._id,
-                userId: c.user?.id || "",
+                _id: c._id || c.id,
+                userId: c.userId || "",
                 name: c.name,
                 email: c.email,
                 phone: c.phone,
@@ -117,11 +117,11 @@ const matchCandidatesToJob = async (req, res) => {
             });
         }
 
-        const candidates = await Candidate.find({ embedding: { $exists: true, $ne: [] } }).populate("user", "id");
+        const candidates = await Candidate.find({});
 
         const scored = candidates.map(c => ({
-            _id: c._id,
-            userId: c.user?.id || "",
+            _id: c._id || c.id,
+            userId: c.userId || "",
             name: c.name,
             email: c.email,
             skills: [...(c.skills || []), ...(c.technicalSkills || [])],
@@ -162,19 +162,22 @@ const hybridSearchCandidates = async (req, res) => {
 
         const queryEmbedding = await createEmbedding(query);
 
-        // Build filter criteria
-        const filter = { embedding: { $exists: true, $ne: [] } };
+        let candidates = await Candidate.find({});
+
+        // Filter by skills if requested
         if (skills && skills.length > 0) {
-            filter.$or = [
-                { skills: { $in: skills } },
-                { technicalSkills: { $in: skills } }
-            ];
-        }
-        if (location) {
-            filter.location = new RegExp(String(location).trim(), "i");
+            const skillSet = new Set(skills.map(s => String(s).toLowerCase()));
+            candidates = candidates.filter(c => {
+                const allSkills = [...(c.skills || []), ...(c.technicalSkills || [])].map(s => String(s).toLowerCase());
+                return allSkills.some(s => skillSet.has(s));
+            });
         }
 
-        const candidates = await Candidate.find(filter).populate("user", "id");
+        // Filter by location if requested
+        if (location) {
+            const locLower = String(location).trim().toLowerCase();
+            candidates = candidates.filter(c => String(c.location || "").toLowerCase().includes(locLower));
+        }
 
         let queryLower = query.toLowerCase();
 
@@ -209,8 +212,8 @@ const hybridSearchCandidates = async (req, res) => {
             else if (keywordRegex.test(c.summary || "")) keywordBoost += 0.1;
 
             return {
-                _id: c._id,
-                userId: c.user?.id || "",
+                _id: c._id || c.id,
+                userId: c.userId || "",
                 name: c.name,
                 email: c.email,
                 skills: skillSource,
@@ -252,9 +255,7 @@ const rankCandidatesForJob = async (req, res) => {
             });
         }
 
-        const candidates = await Candidate.find({
-            embedding: { $ne: [] }
-        }).populate("user", "id");
+        const candidates = await Candidate.find({});
 
         const rankedCandidates = candidates.map(candidate => {
             const scoreData = calculateCandidateScore(candidate, job);
