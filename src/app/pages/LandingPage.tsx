@@ -26,7 +26,7 @@ export function LandingPage() {
   const heroSlides = [
     {
       title: "Find Your Dream Job with CONSOLE | TalentBridge",
-      description: "The recruitment platform that puts top-tier talent first. Say goodbye to scattered data and hello to seamless hiring.",
+      description: "TalentBridge is an AI-powered recruitment platform that connects job seekers with top employers. Upload your resume, get AI-matched to roles, track applications, and receive offers — all in one place.",
       primaryButton: {
         text: "Get Started",
         onClick: () => navigate("/candidate/signup")
@@ -40,7 +40,7 @@ export function LandingPage() {
     },
     {
       title: "Hire Top Talent Faster with CONSOLE | TalentBridge",
-      description: "Streamline your recruitment process with powerful tools designed for modern hiring teams. Connect with qualified candidates instantly.",
+      description: "TalentBridge helps recruiters post jobs, evaluate candidates with AI, schedule interviews via Google Calendar, send assessments, and manage offer letters — streamlining the entire hiring pipeline.",
       primaryButton: {
         text: "Start Hiring",
         onClick: () => navigate("/recruiter/signup")
@@ -395,7 +395,37 @@ export function LandingPage() {
         </div>
       </section>
 
-      {/* About Us / Footer */}
+      {/* About Section */}
+      <section className="py-12 md:py-20 bg-white dark:bg-gray-900" aria-label="About TalentBridge">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="max-w-3xl mx-auto text-center">
+            <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-6">
+              About CONSOLE | TalentBridge
+            </h2>
+            <p className="text-base sm:text-lg text-gray-600 dark:text-gray-300 mb-4">
+              <strong>CONSOLE | TalentBridge</strong> is an AI-powered recruitment platform built to
+              bridge the gap between talented job seekers and the companies that need them.
+            </p>
+            <p className="text-base sm:text-lg text-gray-600 dark:text-gray-300 mb-4">
+              <strong>For candidates:</strong> create a profile, upload your resume for AI-powered
+              parsing, browse and apply for jobs, take online assessments, track your application
+              status in real time, message recruiters directly, and receive and manage offer letters.
+            </p>
+            <p className="text-base sm:text-lg text-gray-600 dark:text-gray-300 mb-4">
+              <strong>For recruiters:</strong> post job listings, use semantic AI search to discover
+              the best-matched candidates, evaluate applicants with automated scoring, send
+              assessments, schedule interviews via Google Calendar, and send offer letters — all
+              from a single unified dashboard.
+            </p>
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              Sign in with Google is used solely to authenticate users and optionally sync interview
+              schedules to Google Calendar. We do not share your data with third parties.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* Footer */}
       <footer id="about" className="bg-gray-900 dark:bg-black text-white py-10 md:py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-8 md:gap-12 mb-12">

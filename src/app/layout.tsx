@@ -6,9 +6,21 @@ import Script from "next/script";
 
 export const metadata: Metadata = {
   title: "CONSOLE | TalentBridge",
-  description: "AI-Powered Talent Matching & Hiring Platform",
+  description: "AI-Powered Recruitment Platform — Connect top talent with leading companies using AI-powered job matching, resume analysis, and automated candidate evaluation.",
   icons: {
     icon: "/favicon.png",
+  },
+  verification: {
+    // Replace this value with your actual Google Search Console verification code
+    // Get it from: https://search.google.com/search-console → Add property → HTML tag
+    google: "REPLACE_WITH_YOUR_GOOGLE_SITE_VERIFICATION_CODE",
+  },
+  openGraph: {
+    title: "CONSOLE | TalentBridge",
+    description: "AI-Powered Recruitment Platform — Connect top talent with leading companies.",
+    url: "https://console-talent-bridge.vercel.app",
+    siteName: "CONSOLE | TalentBridge",
+    type: "website",
   },
 };
 
