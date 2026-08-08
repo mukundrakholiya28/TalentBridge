@@ -1,3 +1,5 @@
+"use client";
+
 import { useNavigate } from "@/lib/router-compat";
 import { useState, useEffect } from "react";
 import {
