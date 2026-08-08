@@ -103,34 +103,13 @@ async function handler(
       const resHeaders: Record<string, string> = {};
       let status = 200;
 
-      let pipeDone = false;
-      const mockReq: any = {
-        method:  req.method,
-        url,
-        originalUrl: url,
-        headers,
-        socket:  { remoteAddress: "127.0.0.1" },
-        connection: {},
-        on(event: string, fn: (data?: any) => void) {
-          if (event === "data") {
-            if (bodyBuf.length > 0) process.nextTick(() => fn(bodyBuf));
-          } else if (event === "end") {
-            process.nextTick(() => fn());
-          }
-          return this;
-        },
-        resume() { return this; },
-        pause() { return this; },
-        pipe(dest: any) {
-          if (!pipeDone) {
-            pipeDone = true;
-            if (bodyBuf.length > 0) dest.write(bodyBuf);
-            dest.end();
-          }
-          return dest;
-        },
-        unpipe() { return this; },
-      };
+      const mockReq: any = Readable.from(bodyBuf);
+      mockReq.method = req.method;
+      mockReq.url = url;
+      mockReq.originalUrl = url;
+      mockReq.headers = headers;
+      mockReq.socket = { remoteAddress: "127.0.0.1" };
+      mockReq.connection = {};
 
       const mockRes: any = {
         get statusCode() { return status; },
