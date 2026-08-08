@@ -222,6 +222,19 @@ export function LandingPage() {
       {/* Hero Section */}
       <section className="bg-gradient-to-b from-blue-50 to-white dark:from-gray-900 dark:to-gray-800 py-12 md:py-20 relative overflow-hidden">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center md:text-left mb-8">
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-blue-100 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300 text-xs sm:text-sm font-semibold mb-4">
+              <Zap className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+              <span>TalentBridge — AI-Powered Recruitment Platform</span>
+            </div>
+            <h1 className="text-4xl sm:text-5xl md:text-6xl font-extrabold text-gray-900 dark:text-white tracking-tight mb-4">
+              TalentBridge
+            </h1>
+            <p className="text-lg sm:text-xl text-gray-600 dark:text-gray-300 max-w-3xl mb-8">
+              TalentBridge is an AI-powered recruitment platform connecting job seekers with top employers. Search jobs, parse resumes with AI, track applications, conduct online assessments, schedule interviews via Google Calendar, and manage offer letters.
+            </p>
+          </div>
+
           <div className="grid md:grid-cols-2 gap-12 items-center">
             {/* Text content with fade transition */}
             <div className="relative">
@@ -231,22 +244,22 @@ export function LandingPage() {
                   className={`transition-opacity duration-700 ${index === currentSlide ? 'opacity-100' : 'opacity-0 absolute inset-0 pointer-events-none'
                     }`}
                 >
-                  <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-gray-900 dark:text-white mb-6">
+                  <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-4">
                     {slide.title}
-                  </h1>
-                  <p className="text-base sm:text-lg md:text-xl text-gray-600 dark:text-gray-300 mb-8">
+                  </h2>
+                  <p className="text-base sm:text-lg text-gray-600 dark:text-gray-300 mb-8">
                     {slide.description}
                   </p>
                   <div className="flex gap-4">
                     <button
                       onClick={slide.primaryButton.onClick}
-                      className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                      className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
                     >
                       {slide.primaryButton.text}
                     </button>
                     <button
                       onClick={slide.secondaryButton.onClick}
-                      className="px-6 py-3 border border-gray-300 dark:border-gray-800 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                      className="px-6 py-3 border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors font-medium"
                     >
                       {slide.secondaryButton.text}
                     </button>
@@ -266,7 +279,7 @@ export function LandingPage() {
                   <ImageWithFallback
                     src={slide.image}
                     alt={slide.imageAlt}
-                    className="rounded-lg shadow-2xl"
+                    className="rounded-lg shadow-2xl border border-gray-200 dark:border-gray-800"
                   />
                 </div>
               ))}
@@ -397,32 +410,61 @@ export function LandingPage() {
         </div>
       </section>
 
-      {/* About Section */}
-      <section className="py-12 md:py-20 bg-white dark:bg-gray-900" aria-label="About TalentBridge">
+      {/* Application Purpose & OAuth Usage Section */}
+      <section id="purpose" className="py-16 md:py-24 bg-gradient-to-b from-gray-50 to-white dark:from-gray-800 dark:to-gray-900 border-t border-gray-200 dark:border-gray-800" aria-label="About TalentBridge Application Purpose">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="max-w-3xl mx-auto text-center">
-            <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-6">
-              About TalentBridge
+          <div className="text-center max-w-3xl mx-auto mb-12">
+            <h2 className="text-3xl sm:text-4xl font-extrabold text-gray-900 dark:text-white mb-4">
+              About TalentBridge & Application Purpose
             </h2>
-            <p className="text-base sm:text-lg text-gray-600 dark:text-gray-300 mb-4">
-              <strong>TalentBridge</strong> is an AI-powered recruitment platform built to
-              bridge the gap between talented job seekers and the companies that need them.
+            <p className="text-base sm:text-lg text-gray-600 dark:text-gray-300">
+              <strong>TalentBridge</strong> is an all-in-one AI recruitment and hiring management platform designed to streamline employment opportunities for job seekers and recruiters alike.
             </p>
-            <p className="text-base sm:text-lg text-gray-600 dark:text-gray-300 mb-4">
-              <strong>For candidates:</strong> create a profile, upload your resume for AI-powered
-              parsing, browse and apply for jobs, take online assessments, track your application
-              status in real time, message recruiters directly, and receive and manage offer letters.
-            </p>
-            <p className="text-base sm:text-lg text-gray-600 dark:text-gray-300 mb-4">
-              <strong>For recruiters:</strong> post job listings, use semantic AI search to discover
-              the best-matched candidates, evaluate applicants with automated scoring, send
-              assessments, schedule interviews via Google Calendar, and send offer letters — all
-              from a single unified dashboard.
-            </p>
-            <p className="text-sm text-gray-500 dark:text-gray-400">
-              Sign in with Google is used solely to authenticate users and optionally sync interview
-              schedules to Google Calendar. We do not share your data with third parties.
-            </p>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-8 mb-12">
+            {/* Card 1: For Job Seekers */}
+            <div className="p-6 bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm">
+              <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/50 rounded-lg flex items-center justify-center text-blue-600 dark:text-blue-400 mb-4">
+                <Users className="w-6 h-6" />
+              </div>
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-3">For Job Seekers (Candidates)</h3>
+              <ul className="space-y-2 text-sm text-gray-600 dark:text-gray-300">
+                <li>• Create professional candidate profiles</li>
+                <li>• Upload resumes for automated AI parsing & skill matching</li>
+                <li>• Track application statuses in real-time</li>
+                <li>• Complete online assessments & skill tests</li>
+                <li>• Sync scheduled interviews with Google Calendar</li>
+              </ul>
+            </div>
+
+            {/* Card 2: For Employers */}
+            <div className="p-6 bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm">
+              <div className="w-12 h-12 bg-green-100 dark:bg-green-900/50 rounded-lg flex items-center justify-center text-green-600 dark:text-green-400 mb-4">
+                <Briefcase className="w-6 h-6" />
+              </div>
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-3">For Employers & Recruiters</h3>
+              <ul className="space-y-2 text-sm text-gray-600 dark:text-gray-300">
+                <li>• Post open position listings & job requirements</li>
+                <li>• Discover top talent using semantic AI search</li>
+                <li>• Evaluate applicants with automated scoring</li>
+                <li>• Schedule interview invitations synced with Google Calendar</li>
+                <li>• Manage offer letters & hiring workflows</li>
+              </ul>
+            </div>
+
+            {/* Card 3: Google Integration & OAuth Scopes */}
+            <div className="p-6 bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm">
+              <div className="w-12 h-12 bg-purple-100 dark:bg-purple-900/50 rounded-lg flex items-center justify-center text-purple-600 dark:text-purple-400 mb-4">
+                <Shield className="w-6 h-6" />
+              </div>
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-3">Google OAuth & Permissions</h3>
+              <ul className="space-y-2 text-sm text-gray-600 dark:text-gray-300">
+                <li>• <strong>Authentication (<code className="text-xs">openid, email, profile</code>):</strong> Enables secure, passwordless account sign-in.</li>
+                <li>• <strong>Google Calendar (<code className="text-xs">calendar</code>):</strong> Allows candidates and recruiters to automatically create, sync, and view interview event invites directly in their Google Calendar.</li>
+                <li>• <strong>Privacy Commitment:</strong> TalentBridge does not store or share private Google data with third parties.</li>
+              </ul>
+            </div>
           </div>
         </div>
       </section>
