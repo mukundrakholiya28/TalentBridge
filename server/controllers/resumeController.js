@@ -241,7 +241,6 @@ const uploadResume = async (req, res) => {
         console.log('[Resume Upload] Request received');
         console.log('[Resume Upload] File present:', !!req.file);
         console.log('[Resume Upload] User:', req.user?.id || req.user?._id);
-        console.log('[Resume Upload] Headers:', req.headers['content-type']);
         
         if (!req.file) {
             console.error('[Resume Upload] ERROR: No file in request');
@@ -264,57 +263,70 @@ const uploadResume = async (req, res) => {
         console.log('[Resume Upload] Context retrieved successfully');
         console.log('[Resume Upload] File size:', req.file.size, 'bytes');
         console.log('[Resume Upload] File mimetype:', req.file.mimetype);
-        
-        let pdfData = "";
-        try {
-            console.log('[Resume Upload] Parsing PDF buffer...');
-            pdfData = await parsePdfBuffer(req.file.buffer);
-            console.log('[Resume Upload] PDF parsed successfully');
-        } catch (pdfErr) {
-            console.error("[Resume Upload] PDF parsing failed:", pdfErr.message);
-            console.log('[Resume Upload] Using raw buffer fallback');
-            pdfData = { text: req.file.buffer.toString("utf-8").replace(/[^\x20-\x7E\n\r\t]/g, " ") };
-        }
 
-        const rawText = String(extractPdfText(pdfData) || "");
-        console.log('[Resume Upload] Extracted text length:', rawText.length, 'characters');
-        
-        if (rawText.length < 50) {
-            console.warn('[Resume Upload] Warning: Very short resume text extracted');
-            // Still continue - maybe it's a formatted PDF with minimal text
-        }
-        
-        const formattedText = buildFormattedText(rawText);
-        const cleanedText = cleanText(rawText) || "Resume Content";
-        console.log('[Resume Upload] Text formatted and cleaned');
+        // Convert PDF buffer to base64 for Gemini
+        const pdfBase64 = req.file.buffer.toString('base64');
+        console.log('[Resume Upload] PDF converted to base64');
 
         let structuredData = {};
-        let useAI = false;
         
-        // Only attempt AI analysis if GEMINI_API_KEY is configured
+        // Try Gemini API with file directly
         if (process.env.GEMINI_API_KEY) {
             try {
-                console.log('[Resume Upload] Starting AI analysis with Gemini...');
-                structuredData = await analyzeResume(formattedText || cleanedText, PROFILE_REQUIREMENTS);
-                console.log('[Resume Upload] AI analysis completed successfully');
-                useAI = true;
-            } catch (err) {
-                console.error("AI resume analysis failed:", err.message);
-                console.log('[Resume Upload] Falling back to regex extraction');
-            }
-        } else {
-            console.warn('[Resume Upload] GEMINI_API_KEY not configured, using fallback extraction');
-        }
-        
-        // If AI failed or wasn't attempted, use fallback
-        if (!useAI) {
-            console.log('[Resume Upload] Using fallback extraction (regex-based)');
-            try {
-                structuredData = fallbackExtract(formattedText || cleanedText);
-                console.log('[Resume Upload] Fallback extraction completed');
-            } catch (fallbackErr) {
-                console.error('[Resume Upload] Even fallback extraction failed:', fallbackErr.message);
-                // Use absolute minimal data
+                console.log('[Resume Upload] Sending PDF directly to Gemini...');
+                const { GoogleGenerativeAI } = require("@google/generative-ai");
+                const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+                const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+
+                const prompt = `
+Extract the following information from this resume PDF and return ONLY valid JSON in exactly this format:
+
+{
+  "name": "",
+  "email": "",
+  "phone": "",
+  "githubUrl": "",
+  "linkedinUrl": "",
+  "technicalSkills": [],
+  "experience": [{"title":"","company":"","period":"","description":""}],
+  "education": [{"degree":"","institution":"","year":""}],
+  "projects": [{"name":"","description":""}],
+  "extraCurricular": [],
+  "summary": ""
+}
+
+Rules:
+- Extract ALL information from the resume
+- Use empty string "" or empty array [] if information is not found
+- Keep descriptions concise (one line)
+- Return ONLY the JSON, no markdown, no explanation
+`;
+
+                const result = await model.generateContent([
+                    {
+                        inlineData: {
+                            mimeType: "application/pdf",
+                            data: pdfBase64
+                        }
+                    },
+                    { text: prompt }
+                ]);
+
+                const response = await result.response;
+                const text = response.text();
+                console.log('[Resume Upload] Gemini response received, length:', text.length);
+
+                // Extract JSON from response
+                const jsonMatch = text.match(/\{[\s\S]*\}/);
+                if (jsonMatch) {
+                    structuredData = JSON.parse(jsonMatch[0]);
+                    console.log('[Resume Upload] Successfully parsed Gemini JSON response');
+                } else {
+                    throw new Error('No JSON found in Gemini response');
+                }
+            } catch (geminiErr) {
+                console.error('[Resume Upload] Gemini extraction failed:', geminiErr.message);
+                console.log('[Resume Upload] Using fallback extraction');
                 structuredData = {
                     name: "",
                     email: "",
@@ -327,36 +339,25 @@ const uploadResume = async (req, res) => {
                     education: [],
                     projects: [],
                     extraCurricular: [],
-                    summary: cleanedText.substring(0, 200)
+                    summary: "Resume uploaded successfully. Please edit your profile to add details."
                 };
             }
-        }
-
-        const sectionFallback = extractSectionsFallback(formattedText || cleanedText);
-        if (!Array.isArray(structuredData.experience) || structuredData.experience.length === 0) {
-            structuredData.experience = sectionFallback.experience;
-        }
-        if (!Array.isArray(structuredData.education) || structuredData.education.length === 0) {
-            structuredData.education = sectionFallback.education;
-        }
-        if (!Array.isArray(structuredData.projects) || structuredData.projects.length === 0) {
-            structuredData.projects = sectionFallback.projects;
-        }
-        if (!Array.isArray(structuredData.extraCurricular) || structuredData.extraCurricular.length === 0) {
-            structuredData.extraCurricular = sectionFallback.extraCurricular;
-        }
-
-        let embedding = [];
-        if (cleanedText && cleanedText.length > 10) {
-            try {
-                embedding = await createEmbedding(cleanedText);
-                console.log('[Resume Upload] Embedding created successfully');
-            } catch (err) {
-                console.warn("Resume embedding creation failed (non-critical):", err.message);
-                // Continue without embedding - it's not critical for basic functionality
-            }
         } else {
-            console.warn('[Resume Upload] Text too short for embedding, skipping');
+            console.warn('[Resume Upload] GEMINI_API_KEY not configured');
+            structuredData = {
+                name: "",
+                email: "",
+                phone: "",
+                githubUrl: "",
+                linkedinUrl: "",
+                technicalSkills: [],
+                skills: [],
+                experience: [],
+                education: [],
+                projects: [],
+                extraCurricular: [],
+                summary: "Resume uploaded. Gemini API key not configured - please edit profile manually."
+            };
         }
 
         console.log('[Resume Upload] Merging skills...');
@@ -385,9 +386,9 @@ const uploadResume = async (req, res) => {
             candidate.projects = Array.isArray(structuredData.projects) ? structuredData.projects : (candidate.projects || []);
             candidate.extraCurricular = Array.isArray(structuredData.extraCurricular) ? structuredData.extraCurricular : (candidate.extraCurricular || []);
             candidate.summary = structuredData.summary || candidate.summary || "";
-            candidate.resumeText = cleanedText;
+            candidate.resumeText = structuredData.summary || "Resume uploaded";
             candidate.resumePath = req.file.originalname || "";
-            candidate.embedding = embedding;
+            candidate.embedding = []; // Skip embedding for now
             console.log('[Resume Upload] Candidate fields updated');
         } catch (fieldErr) {
             console.error('[Resume Upload] Error updating candidate fields:', fieldErr.message);
@@ -430,48 +431,8 @@ const uploadResume = async (req, res) => {
             console.warn("User save warning:", userSaveErr.message);
         }
 
-        // Process chunks in background (non-blocking, don't fail the upload if this fails)
-        try {
-            const targetCandidateId = candidate.id || candidate._id;
-            await ResumeChunk.deleteMany({ candidateId: targetCandidateId });
-
-            let chunks = chunkResume({
-                summary: candidate.summary || "",
-                skills: candidate.skills || [],
-                experience: candidate.experience || [],
-                education: candidate.education || [],
-                projects: candidate.projects || []
-            });
-
-            if (!Array.isArray(chunks) || chunks.length === 0) {
-                chunks = [{ type: "summary", text: cleanedText }];
-            }
-
-            for (const chunk of chunks) {
-                const chunkText = cleanText(chunk.text || "");
-                if (!chunkText) continue;
-
-                let chunkEmbedding = [];
-                try {
-                    chunkEmbedding = await createEmbedding(chunkText);
-                } catch (err) {
-                    console.warn("Chunk embedding failed (non-critical):", err.message);
-                }
-
-                try {
-                    await ResumeChunk.create({
-                        candidateId: targetCandidateId,
-                        text: chunkText,
-                        type: chunk.type,
-                        embedding: chunkEmbedding
-                    });
-                } catch (err) {
-                    console.warn("Chunk creation failed (non-critical):", err.message);
-                }
-            }
-        } catch (chunkErr) {
-            console.warn("Resume chunk processing failed (non-critical):", chunkErr.message);
-        }
+        // Skip chunk processing for now - not critical for basic functionality
+        console.log('[Resume Upload] Skipping chunk processing');
 
         console.log('[Resume Upload] Success! Returning candidate profile');
         return res.status(200).json({
