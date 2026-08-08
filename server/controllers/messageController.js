@@ -119,7 +119,7 @@ const getMessages = async (req, res) => {
         }).sort({ createdAt: 1 });
 
         const formattedMessages = messages.map(msg => ({
-            id: msg._id.toString(),
+            id: (msg.id || msg._id).toString(),
             senderId: msg.senderId,
             senderName: msg.senderId === userId ? "You" : "User",
             receiverId: msg.receiverId,
@@ -142,10 +142,9 @@ const markMessageRead = async (req, res) => {
         const { messageId } = req.params;
         const userId = req.user.id;
 
-        const message = await Message.findOneAndUpdate(
-            { _id: messageId, receiverId: userId },
-            { isRead: true },
-            { returnDocument: 'after' }
+        let message = await Message.findOneAndUpdate(
+            { id: messageId, receiverId: userId },
+            { isRead: true }
         );
 
         if (!message) {

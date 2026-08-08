@@ -8,8 +8,10 @@ const evaluateCandidateForJob = async (req, res) => {
 
     const { candidateId, jobId } = req.params;
 
-    const candidate = await Candidate.findById(candidateId);
-    const job = await Job.findOne({ id: jobId });
+    let job = await Job.findOne({ id: jobId });
+    if (!job) {
+      try { job = await Job.findById(jobId); } catch (_) {}
+    }
 
     if (!candidate || !job) {
       return res.status(404).json({

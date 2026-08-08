@@ -287,7 +287,9 @@ const updateApplicationStatus = async (req, res) => {
             return res.status(404).json({ success: false, message: "Recruiter not found" });
         }
 
-        if (!application.recruiterId.equals(recruiterUser._id)) {
+        const appRecruiterId = typeof application.recruiterId === 'object' ? (application.recruiterId.id || application.recruiterId._id) : String(application.recruiterId || '');
+        const currentRecruiterId = String(recruiterUser.id || recruiterUser._id || '');
+        if (appRecruiterId !== currentRecruiterId) {
             return res.status(403).json({ success: false, message: "Not authorized for this application" });
         }
 
@@ -415,8 +417,8 @@ const bulkUpdateApplicationStatus = async (req, res) => {
         }
 
         const applications = await Application.find({
-            _id: { $in: ids.filter((x) => mongoose.Types.ObjectId.isValid(x)) },
-            recruiterId: recruiterUser._id
+            id: { $in: ids },
+            recruiterId: recruiterUser.id || recruiterUser._id
         });
 
         let updatedCount = 0;

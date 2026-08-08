@@ -102,6 +102,84 @@ function buildOrFilter(orArray) {
     return parts.length ? parts.join(",") : null;
 }
 
+function createQueryPromise(asyncFn, model) {
+    const promise = (async () => {
+        return await asyncFn();
+    })();
+
+    promise.sort = function(sortObj) {
+        return createQueryPromise(async () => {
+            const results = await promise;
+            if (!Array.isArray(results)) return results;
+            const items = [...results];
+            if (typeof sortObj === 'string') {
+                const desc = sortObj.startsWith('-');
+                const field = desc ? sortObj.slice(1) : sortObj;
+                items.sort((a, b) => {
+                    const valA = a[field] ?? '';
+                    const valB = b[field] ?? '';
+                    if (valA < valB) return desc ? 1 : -1;
+                    if (valA > valB) return desc ? -1 : 1;
+                    return 0;
+                });
+            } else if (typeof sortObj === 'object' && sortObj !== null) {
+                const entries = Object.entries(sortObj);
+                items.sort((a, b) => {
+                    for (const [key, dir] of entries) {
+                        const valA = a[key] ?? '';
+                        const valB = b[key] ?? '';
+                        const isDesc = dir === -1 || dir === 'desc' || dir === 'descending';
+                        if (valA < valB) return isDesc ? 1 : -1;
+                        if (valA > valB) return isDesc ? -1 : 1;
+                    }
+                    return 0;
+                });
+            }
+            return items;
+        }, model);
+    };
+
+    promise.populate = function(path, select) {
+        return createQueryPromise(async () => {
+            const results = await promise;
+            const { populate } = require("../utils/mongooseCompat");
+            return await populate(results, typeof path === 'object' ? path : { path, select });
+        }, model);
+    };
+
+    promise.select = function(fields) {
+        return createQueryPromise(async () => {
+            const result = await promise;
+            if (!result) return result;
+            if (typeof fields === 'string' && fields.startsWith('-')) {
+                const excluded = fields.slice(1).split(' ');
+                if (Array.isArray(result)) {
+                    return result.map(item => {
+                        const copy = typeof item?.toObject === 'function' ? item.toObject() : { ...item };
+                        excluded.forEach(f => delete copy[f]);
+                        return copy;
+                    });
+                } else if (typeof result === 'object') {
+                    const copy = typeof result?.toObject === 'function' ? result.toObject() : { ...result };
+                    excluded.forEach(f => delete copy[f]);
+                    return copy;
+                }
+            }
+            return result;
+        }, model);
+    };
+
+    promise.lean = function() {
+        return promise;
+    };
+
+    promise.exec = function() {
+        return promise;
+    };
+
+    return promise;
+}
+
 // Base Supabase Model Class
 class SupabaseModel {
     constructor(tableName) {
@@ -112,48 +190,56 @@ class SupabaseModel {
         return getClient();
     }
 
-    async find(query = {}) {
-        let q = this.client.from(this.tableName).select("*");
-        const snakeQuery = toSnakeCase(query);
+    find(query = {}) {
+        return createQueryPromise(async () => {
+            let q = this.client.from(this.tableName).select("*");
+            const snakeQuery = toSnakeCase(query);
 
-        // Handle $or queries (MongoDB compat)
-        if (query.$or) {
-            const orFilter = buildOrFilter(query.$or);
-            if (orFilter) {
-                q = q.or(orFilter);
+            // Handle $or queries (MongoDB compat)
+            if (query.$or) {
+                const orFilter = buildOrFilter(query.$or);
+                if (orFilter) {
+                    q = q.or(orFilter);
+                }
+                delete snakeQuery.$or;
             }
-            // Remove $or from the regular filter loop
-            delete snakeQuery.$or;
-        }
 
-        for (const [key, value] of Object.entries(snakeQuery)) {
-            if (key.startsWith("$")) continue; // skip any remaining Mongo operators
-            if (value !== undefined && value !== null) {
-                if (typeof value === "object" && !Array.isArray(value)) {
-                    if (value.$ne !== undefined) q = q.neq(key, value.$ne);
-                    if (value.$in !== undefined) q = q.in(key, value.$in);
-                } else {
-                    q = q.eq(key, value);
+            for (const [key, value] of Object.entries(snakeQuery)) {
+                if (key.startsWith("$")) continue;
+                if (value !== undefined && value !== null) {
+                    if (typeof value === "object" && !Array.isArray(value)) {
+                        if (value.$ne !== undefined) q = q.neq(key, value.$ne);
+                        if (value.$in !== undefined) q = q.in(key, value.$in);
+                    } else {
+                        q = q.eq(key, value);
+                    }
                 }
             }
-        }
 
-        const { data, error } = await withTimeout(q);
-        if (error) {
-            console.error(`❌ Supabase query error for ${this.tableName}:`, error.message);
-            throw new Error(error.message);
-        }
-        return (data || []).map(r => toCamelCase(r, this));
+            const { data, error } = await withTimeout(q);
+            if (error) {
+                console.error(`❌ Supabase query error for ${this.tableName}:`, error.message);
+                throw new Error(error.message);
+            }
+            return (data || []).map(r => toCamelCase(r, this));
+        }, this);
     }
 
-    async findOne(query = {}) {
-        const results = await this.find(query);
-        return results[0] || null;
+    findOne(query = {}) {
+        return createQueryPromise(async () => {
+            const results = await this.find(query);
+            return results[0] || null;
+        }, this);
     }
 
-    async findById(id) {
-        if (!id) return null;
-        return this.findOne({ id: String(id) });
+    findById(id) {
+        return createQueryPromise(async () => {
+            if (!id) return null;
+            const targetId = typeof id === 'object' ? (id.id || id._id) : String(id);
+            if (!targetId) return null;
+            const results = await this.find({ id: String(targetId) });
+            return results[0] || null;
+        }, this);
     }
 
     async create(data) {
@@ -225,6 +311,14 @@ class SupabaseModel {
         return target;
     }
 
+    async deleteOne(query = {}) {
+        const item = await this.findOne(query);
+        if (item && (item.id || item._id)) {
+            return this.findByIdAndDelete(item.id || item._id);
+        }
+        return null;
+    }
+
     async countDocuments(query = {}) {
         const items = await this.find(query);
         return items.length;
@@ -283,6 +377,7 @@ function createModelConstructor(tableName) {
     ModelInstance.findByIdAndUpdate = (...args) => rawModel.findByIdAndUpdate(...args);
     ModelInstance.findOneAndUpdate = (...args) => rawModel.findOneAndUpdate(...args);
     ModelInstance.findByIdAndDelete = (...args) => rawModel.findByIdAndDelete(...args);
+    ModelInstance.deleteOne = (...args) => rawModel.deleteOne(...args);
     ModelInstance.countDocuments = (...args) => rawModel.countDocuments(...args);
     ModelInstance.deleteMany = (...args) => rawModel.deleteMany(...args);
 

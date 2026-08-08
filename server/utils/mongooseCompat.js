@@ -29,8 +29,19 @@ async function populate(data, populateConfig) {
     const fieldName = typeof config === 'string' ? config : config.path;
     const selectFields = typeof config === 'object' ? config.select : null;
     
-    // Get the model name from field name
-    const modelName = fieldName.charAt(0).toUpperCase() + fieldName.slice(1);
+    // Map reference field names to actual model names
+    const modelMap = {
+      candidateId: 'User',
+      recruiterId: 'User',
+      jobId: 'Job',
+      applicationId: 'Application',
+      candidate: 'User',
+      recruiter: 'User',
+      job: 'Job',
+      user: 'User'
+    };
+
+    const modelName = modelMap[fieldName] || (fieldName.charAt(0).toUpperCase() + fieldName.slice(1));
     
     try {
       const Model = require(`../models/${modelName}`);

@@ -3,6 +3,13 @@ const AssessmentAttempt = require("../models/AssessmentAttempt");
 const Application = require("../models/Application");
 const User = require("../models/User");
 const { evaluateTestCases } = require("../utils/codeRunner");
+
+const isSameId = (idA, idB) => {
+    if (!idA || !idB) return false;
+    const strA = typeof idA === 'object' ? (idA.id || idA._id || String(idA)) : String(idA);
+    const strB = typeof idB === 'object' ? (idB.id || idB._id || String(idB)) : String(idB);
+    return strA === strB;
+};
 const {
     createCalendarEventForUser,
     buildAssessmentEvent
@@ -77,7 +84,7 @@ const createAssessment = async (req, res) => {
 
         const application = await Application.findById(applicationId).populate("jobId", "title company");
         if (!application) return res.status(404).json({ success: false, message: "Application not found" });
-        if (!application.recruiterId.equals(recruiterUser._id)) {
+        if (!isSameId(application.recruiterId, recruiterUser._id)) {
             return res.status(403).json({ success: false, message: "Not authorized for this application" });
         }
 
@@ -200,7 +207,7 @@ const getAssessmentForCandidate = async (req, res) => {
 
         const assessment = await Assessment.findById(req.params.id);
         if (!assessment) return res.status(404).json({ success: false, message: "Assessment not found" });
-        if (!assessment.candidateId.equals(candidateUser._id)) {
+        if (!isSameId(assessment.candidateId, candidateUser._id)) {
             return res.status(403).json({ success: false, message: "Not authorized for this assessment" });
         }
 
@@ -271,7 +278,7 @@ const submitAssessment = async (req, res) => {
 
         const assessment = await Assessment.findById(req.params.id);
         if (!assessment) return res.status(404).json({ success: false, message: "Assessment not found" });
-        if (!assessment.candidateId.equals(candidateUser._id)) {
+        if (!isSameId(assessment.candidateId, candidateUser._id)) {
             return res.status(403).json({ success: false, message: "Not authorized for this assessment" });
         }
 
@@ -397,7 +404,7 @@ const logProctorEvent = async (req, res) => {
 
         const assessment = await Assessment.findById(req.params.id);
         if (!assessment) return res.status(404).json({ success: false, message: "Assessment not found" });
-        if (!assessment.candidateId.equals(candidateUser._id)) {
+        if (!isSameId(assessment.candidateId, candidateUser._id)) {
             return res.status(403).json({ success: false, message: "Not authorized for this assessment" });
         }
 
@@ -427,7 +434,7 @@ const logCodeSnapshot = async (req, res) => {
 
         const assessment = await Assessment.findById(req.params.id);
         if (!assessment) return res.status(404).json({ success: false, message: "Assessment not found" });
-        if (!assessment.candidateId.equals(candidateUser._id)) {
+        if (!isSameId(assessment.candidateId, candidateUser._id)) {
             return res.status(403).json({ success: false, message: "Not authorized for this assessment" });
         }
 
@@ -465,7 +472,7 @@ const getAssessmentResultsForRecruiter = async (req, res) => {
             .populate("candidateId", "fullName email")
             .populate("applicationId", "status");
         if (!assessment) return res.status(404).json({ success: false, message: "Assessment not found" });
-        if (!assessment.recruiterId.equals(recruiterUser._id)) {
+        if (!isSameId(assessment.recruiterId, recruiterUser._id)) {
             return res.status(403).json({ success: false, message: "Not authorized for this assessment" });
         }
 
@@ -504,7 +511,7 @@ const getAssessmentCodeFeedForRecruiter = async (req, res) => {
 
         const assessment = await Assessment.findById(req.params.id);
         if (!assessment) return res.status(404).json({ success: false, message: "Assessment not found" });
-        if (!assessment.recruiterId.equals(recruiterUser._id)) {
+        if (!isSameId(assessment.recruiterId, recruiterUser._id)) {
             return res.status(403).json({ success: false, message: "Not authorized for this assessment" });
         }
 
@@ -541,7 +548,7 @@ const runCodingTests = async (req, res) => {
 
         const assessment = await Assessment.findById(req.params.id);
         if (!assessment) return res.status(404).json({ success: false, message: "Assessment not found" });
-        if (!assessment.candidateId.equals(candidateUser._id)) {
+        if (!isSameId(assessment.candidateId, candidateUser._id)) {
             return res.status(403).json({ success: false, message: "Not authorized for this assessment" });
         }
 
