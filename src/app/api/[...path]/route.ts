@@ -138,10 +138,15 @@ async function handler(
   const path   = params.path ?? [];
 
   try {
-    const app     = await buildExpressApp();
+    const app = await buildExpressApp();
     
     // Check content-length before reading body
     const contentLength = parseInt(req.headers.get('content-length') || '0');
+    console.log('[API Route] Content-Length:', contentLength);
+    console.log('[API Route] Content-Type:', req.headers.get('content-type'));
+    console.log('[API Route] Method:', req.method);
+    console.log('[API Route] URL:', req.nextUrl.pathname);
+    
     if (contentLength > 5 * 1024 * 1024) { // 5MB limit
       return NextResponse.json(
         { success: false, error: "File too large. Maximum size is 5MB." },
@@ -151,9 +156,12 @@ async function handler(
     
     let bodyBuf: Buffer;
     try {
+      console.log('[API Route] Reading request body...');
       bodyBuf = Buffer.from(await req.arrayBuffer());
+      console.log('[API Route] Body read successfully, size:', bodyBuf.length, 'bytes');
     } catch (bufErr: any) {
       console.error('[API Route] Error reading request body:', bufErr);
+      console.error('[API Route] Error stack:', bufErr.stack);
       return NextResponse.json(
         { success: false, error: "Failed to read request body. Please try with a smaller file." },
         { status: 400 }
@@ -176,14 +184,18 @@ async function handler(
       let dataPushed = false;
       let streamError: Error | null = null;
       
+      console.log('[API Route] Creating mock request stream, buffer size:', bodyBuf.length);
+      
       const mockReq: any = new Readable({
         read() {
           if (!dataPushed) {
             dataPushed = true;
+            console.log('[API Route] Pushing body buffer to stream');
             if (bodyBuf.length > 0) {
               this.push(bodyBuf);
             }
             this.push(null);
+            console.log('[API Route] Stream ended');
           }
         }
       });
@@ -191,6 +203,14 @@ async function handler(
       mockReq.on('error', (err: Error) => {
         console.error('[API Route] Request stream error:', err);
         streamError = err;
+      });
+      
+      mockReq.on('close', () => {
+        console.log('[API Route] Request stream closed');
+      });
+      
+      mockReq.on('end', () => {
+        console.log('[API Route] Request stream ended');
       });
 
       mockReq.method = req.method;
@@ -203,7 +223,10 @@ async function handler(
       // For file uploads, ensure proper content-length
       if (bodyBuf.length > 0 && headers['content-type']?.includes('multipart/form-data')) {
         mockReq.headers['content-length'] = String(bodyBuf.length);
+        console.log('[API Route] Set content-length for multipart:', bodyBuf.length);
       }
+      
+      console.log('[API Route] Calling Express app handler...');
 
       const mockRes: any = {
         get statusCode() { return status; },
