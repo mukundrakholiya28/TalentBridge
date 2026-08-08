@@ -240,12 +240,15 @@ const uploadResume = async (req, res) => {
     try {
         console.log('[Resume Upload] Request received');
         console.log('[Resume Upload] File present:', !!req.file);
-        console.log('[Resume Upload] User:', req.user?.id || req.user?._id);
         
         if (!req.file) {
             console.error('[Resume Upload] ERROR: No file in request');
             return res.status(400).json({ success: false, message: "Resume file is required" });
         }
+
+        console.log('[Resume Upload] File size:', req.file.size, 'bytes');
+        console.log('[Resume Upload] File mimetype:', req.file.mimetype);
+        console.log('[Resume Upload] User:', req.user?.id || req.user?._id);
 
         console.log('[Resume Upload] Getting candidate context...');
         const context = await getCandidateContext(req);
@@ -261,25 +264,22 @@ const uploadResume = async (req, res) => {
         }
         
         console.log('[Resume Upload] Context retrieved successfully');
-        console.log('[Resume Upload] File size:', req.file.size, 'bytes');
-        console.log('[Resume Upload] File mimetype:', req.file.mimetype);
-
-        // Convert PDF buffer to base64 for Gemini
-        const pdfBase64 = req.file.buffer.toString('base64');
-        console.log('[Resume Upload] PDF converted to base64');
 
         let structuredData = {};
         
-        // Try Gemini API with file directly
+        // Try Gemini API with PDF file directly
         if (process.env.GEMINI_API_KEY) {
             try {
-                console.log('[Resume Upload] Sending PDF directly to Gemini...');
+                console.log('[Resume Upload] Converting PDF to base64...');
+                const pdfBase64 = req.file.buffer.toString('base64');
+                console.log('[Resume Upload] Base64 length:', pdfBase64.length);
+                
+                console.log('[Resume Upload] Sending PDF to Gemini...');
                 const { GoogleGenerativeAI } = require("@google/generative-ai");
                 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
                 const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
-                const prompt = `
-Extract the following information from this resume PDF and return ONLY valid JSON in exactly this format:
+                const prompt = `Extract information from this resume PDF and return ONLY valid JSON (no markdown, no explanation):
 
 {
   "name": "",
@@ -295,12 +295,7 @@ Extract the following information from this resume PDF and return ONLY valid JSO
   "summary": ""
 }
 
-Rules:
-- Extract ALL information from the resume
-- Use empty string "" or empty array [] if information is not found
-- Keep descriptions concise (one line)
-- Return ONLY the JSON, no markdown, no explanation
-`;
+Extract ALL information. Use "" or [] if not found.`;
 
                 const result = await model.generateContent([
                     {
@@ -314,19 +309,28 @@ Rules:
 
                 const response = await result.response;
                 const text = response.text();
-                console.log('[Resume Upload] Gemini response received, length:', text.length);
+                console.log('[Resume Upload] Gemini response length:', text.length);
+                console.log('[Resume Upload] Gemini response preview:', text.substring(0, 200));
 
-                // Extract JSON from response
-                const jsonMatch = text.match(/\{[\s\S]*\}/);
+                // Extract JSON from response (remove markdown if present)
+                let jsonText = text.trim();
+                jsonText = jsonText.replace(/^```json\s*/i, '').replace(/\s*```$/,  '');
+                jsonText = jsonText.replace(/^```\s*/, '').replace(/\s*```$/, '');
+                
+                const jsonMatch = jsonText.match(/\{[\s\S]*\}/);
                 if (jsonMatch) {
                     structuredData = JSON.parse(jsonMatch[0]);
-                    console.log('[Resume Upload] Successfully parsed Gemini JSON response');
+                    console.log('[Resume Upload] Successfully parsed JSON from Gemini');
+                    console.log('[Resume Upload] Extracted name:', structuredData.name);
+                    console.log('[Resume Upload] Extracted email:', structuredData.email);
                 } else {
-                    throw new Error('No JSON found in Gemini response');
+                    console.error('[Resume Upload] No JSON found in Gemini response');
+                    throw new Error('No JSON in Gemini response');
                 }
             } catch (geminiErr) {
                 console.error('[Resume Upload] Gemini extraction failed:', geminiErr.message);
-                console.log('[Resume Upload] Using fallback extraction');
+                console.error('[Resume Upload] Gemini stack:', geminiErr.stack);
+                // Use empty profile
                 structuredData = {
                     name: "",
                     email: "",
@@ -339,7 +343,7 @@ Rules:
                     education: [],
                     projects: [],
                     extraCurricular: [],
-                    summary: "Resume uploaded successfully. Please edit your profile to add details."
+                    summary: "Resume uploaded. Please edit profile to add details."
                 };
             }
         } else {
@@ -356,7 +360,7 @@ Rules:
                 education: [],
                 projects: [],
                 extraCurricular: [],
-                summary: "Resume uploaded. Gemini API key not configured - please edit profile manually."
+                summary: "Resume uploaded. Please edit profile manually."
             };
         }
 
