@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server';
 import { handleRouteError, successResponse } from '@/lib/api-response';
 import { requireAuth, getUserId } from '@/lib/auth';
 
-const Job = require('../../../../../server/models/Job');
+const Job = require('@server/models/Job');
 
 /**
  * GET JOBS POSTED BY RECRUITER

@@ -5,9 +5,9 @@ import bcrypt from 'bcryptjs';
 import { randomUUID } from 'crypto';
 
 // Import models
-const User = require('../../../../../server/models/User');
-const Candidate = require('../../../../../server/models/Candidate');
-const Recruiter = require('../../../../../server/models/Recruiter');
+const User = require('@server/models/User');
+const Candidate = require('@server/models/Candidate');
+const Recruiter = require('@server/models/Recruiter');
 
 const buildBaseUsername = (value = "") =>
   String(value)

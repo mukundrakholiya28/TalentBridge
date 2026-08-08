@@ -2,8 +2,8 @@ import { NextRequest } from 'next/server';
 import { handleRouteError, successResponse, errorResponse } from '@/lib/api-response';
 import { requireAuth } from '@/lib/auth';
 
-const Job = require('../../../../../server/models/Job');
-const { createEmbedding } = require('../../../../../server/utils/embedding');
+const Job = require('@server/models/Job');
+const { createEmbedding } = require('@server/utils/embedding');
 
 export async function POST(request: NextRequest) {
   return handleRouteError(async () => {

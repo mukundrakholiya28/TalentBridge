@@ -3,9 +3,9 @@ import { handleRouteError, successResponse, errorResponse } from '@/lib/api-resp
 import { requireAuth, getUserId } from '@/lib/auth';
 import { randomUUID } from 'crypto';
 
-const Job = require('../../../../../server/models/Job');
-const User = require('../../../../../server/models/User');
-const { createEmbedding } = require('../../../../../server/utils/embedding');
+const Job = require('@server/models/Job');
+const User = require('@server/models/User');
+const { createEmbedding } = require('@server/utils/embedding');
 
 export async function POST(request: NextRequest) {
   return handleRouteError(async () => {

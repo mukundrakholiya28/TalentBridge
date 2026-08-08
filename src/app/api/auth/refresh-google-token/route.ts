@@ -3,7 +3,7 @@ import { handleRouteError, successResponse, errorResponse } from '@/lib/api-resp
 import { requireAuth } from '@/lib/auth';
 import { OAuth2Client } from 'google-auth-library';
 
-const User = require('../../../../../server/models/User');
+const User = require('@server/models/User');
 
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
@@ -22,8 +22,9 @@ export async function POST(request: NextRequest) {
     }
 
     const client = new OAuth2Client(GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET);
-    const r = await client.refreshToken(user.google.refreshToken);
-    const newTokens: any = r && (r as any).tokens ? (r as any).tokens : r;
+    client.setCredentials({ refresh_token: user.google.refreshToken });
+    const r = await client.refreshAccessToken();
+    const newTokens: any = r && (r as any).credentials ? (r as any).credentials : r;
 
     user.google = user.google || {};
     if (newTokens.access_token) user.google.accessToken = newTokens.access_token;

@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import { handleRouteError, successResponse, errorResponse } from '@/lib/api-response';
 
-const Job = require('../../../../server/models/Job');
+const Job = require('@server/models/Job');
 
 /**
  * GET ALL JOBS (public - for candidates)

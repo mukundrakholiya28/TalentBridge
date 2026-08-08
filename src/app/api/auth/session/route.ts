@@ -2,9 +2,9 @@ import { NextRequest } from 'next/server';
 import { handleRouteError, successResponse, errorResponse } from '@/lib/api-response';
 import { requireAuth } from '@/lib/auth';
 
-const User = require('../../../../../server/models/User');
-const Candidate = require('../../../../../server/models/Candidate');
-const Recruiter = require('../../../../../server/models/Recruiter');
+const User = require('@server/models/User');
+const Candidate = require('@server/models/Candidate');
+const Recruiter = require('@server/models/Recruiter');
 
 export async function GET(request: NextRequest) {
   return handleRouteError(async () => {

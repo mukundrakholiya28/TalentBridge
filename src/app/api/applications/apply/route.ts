@@ -3,10 +3,10 @@ import { handleRouteError, successResponse, errorResponse } from '@/lib/api-resp
 import { requireAuth, getUserId } from '@/lib/auth';
 import { parseFormData } from '@/lib/file-upload';
 
-const Application = require('../../../../../../server/models/Application');
-const Job = require('../../../../../../server/models/Job');
-const User = require('../../../../../../server/models/User');
-const { mongoose } = require('../../../../../../server/utils/mongooseCompat');
+const Application = require('@server/models/Application');
+const Job = require('@server/models/Job');
+const User = require('@server/models/User');
+const { mongoose } = require('@server/utils/mongooseCompat');
 
 export async function POST(request: NextRequest) {
   return handleRouteError(async () => {

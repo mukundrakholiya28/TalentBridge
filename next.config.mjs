@@ -9,7 +9,7 @@ const nextConfig = {
   reactStrictMode: false,
 
   outputFileTracingIncludes: {
-    '/api/[...path]': ['./server/**/*'],
+    '/api/**/*': ['./server/**/*'],
   },
 
   serverExternalPackages: [
@@ -20,11 +20,12 @@ const nextConfig = {
 
 
   webpack: (config, { isServer }) => {
-    // Path aliases used by the frontend (src/)
+    // Path aliases used by the frontend (src/) and backend (server/)
     config.resolve.alias = {
       ...config.resolve.alias,
       '@': path.resolve(__dirname, 'src'),
       'lib': path.resolve(__dirname, 'src/app/lib'),
+      '@server': path.resolve(__dirname, 'server'),
     };
 
     // Handle binary .node files during Webpack bundling

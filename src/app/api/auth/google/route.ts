@@ -4,9 +4,9 @@ import { signToken } from '@/lib/auth';
 import { OAuth2Client } from 'google-auth-library';
 import { randomUUID } from 'crypto';
 
-const User = require('../../../../../server/models/User');
-const Candidate = require('../../../../../server/models/Candidate');
-const Recruiter = require('../../../../../server/models/Recruiter');
+const User = require('@server/models/User');
+const Candidate = require('@server/models/Candidate');
+const Recruiter = require('@server/models/Recruiter');
 
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 const googleClient = new OAuth2Client(GOOGLE_CLIENT_ID);

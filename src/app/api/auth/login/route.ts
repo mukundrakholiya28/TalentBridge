@@ -3,7 +3,7 @@ import { handleRouteError, successResponse, errorResponse } from '@/lib/api-resp
 import { signToken } from '@/lib/auth';
 import bcrypt from 'bcryptjs';
 
-const User = require('../../../../../server/models/User');
+const User = require('@server/models/User');
 
 export async function POST(request: NextRequest) {
   return handleRouteError(async () => {

@@ -2,8 +2,8 @@ import { NextRequest } from 'next/server';
 import { handleRouteError, jsonResponse } from '@/lib/api-response';
 import { requireAuth, getUserId } from '@/lib/auth';
 
-const Application = require('../../../../../../server/models/Application');
-const User = require('../../../../../../server/models/User');
+const Application = require('@server/models/Application');
+const User = require('@server/models/User');
 
 export async function GET(request: NextRequest) {
   return handleRouteError(async () => {
