@@ -94,7 +94,35 @@ async function buildExpressApp(): Promise<ExpressApp> {
   // Express Error Handler
   app.use((err: any, _req: any, res: any, _next: any) => {
     console.error("[Express API Error]", err);
-    res.status(500).json({ success: false, error: err?.message || "Internal Server Error" });
+    console.error("[Express API Error Stack]", err.stack);
+    
+    // Handle multer-specific errors
+    if (err.code === 'LIMIT_FILE_SIZE') {
+      return res.status(413).json({ 
+        success: false, 
+        error: "File too large. Maximum size is 5MB." 
+      });
+    }
+    
+    if (err.code === 'LIMIT_UNEXPECTED_FILE') {
+      return res.status(400).json({ 
+        success: false, 
+        error: "Unexpected file field. Use 'resume' as the field name." 
+      });
+    }
+    
+    // Handle request aborted errors
+    if (err.message?.includes('Request aborted') || err.code === 'ECONNRESET') {
+      return res.status(408).json({ 
+        success: false, 
+        error: "Upload interrupted. Please try again with a smaller file." 
+      });
+    }
+    
+    res.status(500).json({ 
+      success: false, 
+      error: err?.message || "Internal Server Error" 
+    });
   });
 
   cachedApp = app as unknown as ExpressApp;
@@ -127,6 +155,8 @@ async function handler(
       let status = 200;
 
       let dataPushed = false;
+      let streamError: Error | null = null;
+      
       const mockReq: any = new Readable({
         read() {
           if (!dataPushed) {
@@ -139,12 +169,22 @@ async function handler(
         }
       });
 
+      mockReq.on('error', (err: Error) => {
+        console.error('[API Route] Request stream error:', err);
+        streamError = err;
+      });
+
       mockReq.method = req.method;
       mockReq.url = url;
       mockReq.originalUrl = url;
       mockReq.headers = headers;
       mockReq.socket = { remoteAddress: "127.0.0.1" };
       mockReq.connection = {};
+      
+      // For file uploads, ensure proper content-length
+      if (bodyBuf.length > 0 && headers['content-type']?.includes('multipart/form-data')) {
+        mockReq.headers['content-length'] = String(bodyBuf.length);
+      }
 
       const mockRes: any = {
         get statusCode() { return status; },
@@ -181,15 +221,29 @@ async function handler(
       (app as any)(mockReq, mockRes, (err?: any) => {
         if (err) {
           console.error("[Express Error Callback]", err);
-          return resolve(NextResponse.json({ error: err?.message || String(err) }, { status: 500 }));
+          console.error("[Express Error Callback Stack]", err.stack);
+          
+          // Handle specific error cases
+          if (err.message?.includes('Request aborted')) {
+            return resolve(NextResponse.json(
+              { success: false, error: "Upload interrupted. Please try with a smaller PDF file (under 2MB)." }, 
+              { status: 408 }
+            ));
+          }
+          
+          return resolve(NextResponse.json(
+            { success: false, error: err?.message || String(err) }, 
+            { status: 500 }
+          ));
         }
         resolve(NextResponse.json({ error: `Route ${url} not found` }, { status: 404 }));
       });
     });
   } catch (err: any) {
     console.error("[API route]", err);
+    console.error("[API route stack]", err.stack);
     return NextResponse.json(
-      { error: err?.message ?? "Internal Server Error" },
+      { success: false, error: err?.message ?? "Internal Server Error" },
       { status: 500 }
     );
   }
@@ -204,3 +258,7 @@ export const OPTIONS = handler;
 
 // Never cache API responses on Vercel
 export const dynamic = "force-dynamic";
+
+// Increase body size limit for file uploads
+export const runtime = "nodejs";
+export const maxDuration = 60; // 60 seconds for file processing
