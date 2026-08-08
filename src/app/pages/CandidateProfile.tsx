@@ -559,11 +559,12 @@ export function CandidateProfile() {
                       type="text"
                       value={profile.name}
                       onChange={(e) => setProfile({ ...profile, name: e.target.value })}
-                      className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-2 border-b-2 border-blue-600 bg-transparent"
+                      placeholder="Enter your full name (e.g., John Doe)"
+                      className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-2 border-b-2 border-blue-600 bg-transparent w-full"
                     />
                   ) : (
                     <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-2">
-                      {profile.name}
+                      {profile.name || "Your Name"}
                     </h1>
                   )}
                   {isEditing ? (
@@ -571,11 +572,12 @@ export function CandidateProfile() {
                       type="text"
                       value={profile.title}
                       onChange={(e) => setProfile({ ...profile, title: e.target.value })}
-                      className="text-xl text-gray-600 dark:text-gray-400 mb-4 border-b border-blue-600 bg-transparent"
+                      placeholder="Job title (e.g., Software Engineer, Data Scientist)"
+                      className="text-xl text-gray-600 dark:text-gray-400 mb-4 border-b border-blue-600 bg-transparent w-full"
                     />
                   ) : (
                     <p className="text-xl text-gray-600 dark:text-gray-400 mb-4">
-                      {profile.title}
+                      {profile.title || "Your Title"}
                     </p>
                   )}
                   <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600 dark:text-gray-400">
@@ -590,8 +592,8 @@ export function CandidateProfile() {
                           type="text"
                           value={profile.phone}
                           onChange={(e) => setProfile({ ...profile, phone: e.target.value })}
-                          placeholder="Phone"
-                          className="bg-transparent border-b border-blue-600 text-gray-900 dark:text-white text-sm w-32"
+                          placeholder="+1 234 567 8900"
+                          className="bg-transparent border-b border-blue-600 text-gray-900 dark:text-white text-sm w-40"
                         />
                       </div>
                     ) : (
@@ -609,8 +611,8 @@ export function CandidateProfile() {
                           type="text"
                           value={profile.location}
                           onChange={(e) => setProfile({ ...profile, location: e.target.value })}
-                          placeholder="Location"
-                          className="bg-transparent border-b border-blue-600 text-gray-900 dark:text-white text-sm w-32"
+                          placeholder="City, Country"
+                          className="bg-transparent border-b border-blue-600 text-gray-900 dark:text-white text-sm w-40"
                         />
                       </div>
                     ) : (
@@ -624,8 +626,8 @@ export function CandidateProfile() {
                             type="text"
                             value={profile.githubUrl}
                             onChange={(e) => setProfile({ ...profile, githubUrl: e.target.value })}
-                            placeholder="GitHub URL"
-                            className="bg-transparent border-b border-blue-600 text-gray-900 dark:text-white text-sm w-40"
+                            placeholder="https://github.com/username"
+                            className="bg-transparent border-b border-blue-600 text-gray-900 dark:text-white text-sm w-56"
                           />
                         </div>
                         <div className="flex items-center gap-1">
@@ -634,8 +636,8 @@ export function CandidateProfile() {
                             type="text"
                             value={profile.linkedinUrl}
                             onChange={(e) => setProfile({ ...profile, linkedinUrl: e.target.value })}
-                            placeholder="LinkedIn URL"
-                            className="bg-transparent border-b border-blue-600 text-gray-900 dark:text-white text-sm w-40"
+                            placeholder="https://linkedin.com/in/username"
+                            className="bg-transparent border-b border-blue-600 text-gray-900 dark:text-white text-sm w-56"
                           />
                         </div>
                       </div>
