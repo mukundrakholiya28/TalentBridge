@@ -236,21 +236,31 @@ const fallbackExtract = (text) => {
 };
 
 const uploadResume = async (req, res) => {
+    console.log('[Resume Upload] ========== NEW UPLOAD REQUEST ==========');
     try {
         console.log('[Resume Upload] Request received');
         console.log('[Resume Upload] File present:', !!req.file);
         console.log('[Resume Upload] User:', req.user?.id || req.user?._id);
+        console.log('[Resume Upload] Headers:', req.headers['content-type']);
         
         if (!req.file) {
+            console.error('[Resume Upload] ERROR: No file in request');
             return res.status(400).json({ success: false, message: "Resume file is required" });
         }
 
+        console.log('[Resume Upload] Getting candidate context...');
         const context = await getCandidateContext(req);
         if (context.error) {
+            console.error('[Resume Upload] ERROR: Context error:', context.error);
             return res.status(context.error.code).json({ success: false, message: context.error.message });
         }
 
         const { user, candidate } = context;
+        if (!user || !candidate) {
+            console.error('[Resume Upload] ERROR: Missing user or candidate');
+            return res.status(404).json({ success: false, message: "User or candidate not found" });
+        }
+        
         console.log('[Resume Upload] Context retrieved successfully');
         console.log('[Resume Upload] File size:', req.file.size, 'bytes');
         console.log('[Resume Upload] File mimetype:', req.file.mimetype);
@@ -271,10 +281,12 @@ const uploadResume = async (req, res) => {
         
         if (rawText.length < 50) {
             console.warn('[Resume Upload] Warning: Very short resume text extracted');
+            // Still continue - maybe it's a formatted PDF with minimal text
         }
         
         const formattedText = buildFormattedText(rawText);
         const cleanedText = cleanText(rawText) || "Resume Content";
+        console.log('[Resume Upload] Text formatted and cleaned');
 
         let structuredData = {};
         let useAI = false;
@@ -296,7 +308,28 @@ const uploadResume = async (req, res) => {
         
         // If AI failed or wasn't attempted, use fallback
         if (!useAI) {
-            structuredData = fallbackExtract(formattedText || cleanedText);
+            console.log('[Resume Upload] Using fallback extraction (regex-based)');
+            try {
+                structuredData = fallbackExtract(formattedText || cleanedText);
+                console.log('[Resume Upload] Fallback extraction completed');
+            } catch (fallbackErr) {
+                console.error('[Resume Upload] Even fallback extraction failed:', fallbackErr.message);
+                // Use absolute minimal data
+                structuredData = {
+                    name: "",
+                    email: "",
+                    phone: "",
+                    githubUrl: "",
+                    linkedinUrl: "",
+                    technicalSkills: [],
+                    skills: [],
+                    experience: [],
+                    education: [],
+                    projects: [],
+                    extraCurricular: [],
+                    summary: cleanedText.substring(0, 200)
+                };
+            }
         }
 
         const sectionFallback = extractSectionsFallback(formattedText || cleanedText);
@@ -326,6 +359,7 @@ const uploadResume = async (req, res) => {
             console.warn('[Resume Upload] Text too short for embedding, skipping');
         }
 
+        console.log('[Resume Upload] Merging skills...');
         const mergedSkills = safeSkills([
             ...(candidate.skills || []),
             ...(structuredData.skills || []),
@@ -337,30 +371,40 @@ const uploadResume = async (req, res) => {
             ...mergedSkills
         ]);
 
-        candidate.name = structuredData.name || candidate.name || user.fullName || "";
-        candidate.email = user.email || candidate.email || "";
-        candidate.phone = structuredData.phone || candidate.phone || user.phone || "";
-        candidate.githubUrl = structuredData.githubUrl || candidate.githubUrl || user.githubUrl || "";
-        candidate.linkedinUrl = structuredData.linkedinUrl || candidate.linkedinUrl || user.linkedinUrl || "";
-        candidate.technicalSkills = mergedTechnicalSkills;
-        candidate.skills = mergedSkills;
-        candidate.experience = Array.isArray(structuredData.experience) ? structuredData.experience : (candidate.experience || []);
-        candidate.education = Array.isArray(structuredData.education) ? structuredData.education : (candidate.education || []);
-        candidate.projects = Array.isArray(structuredData.projects) ? structuredData.projects : (candidate.projects || []);
-        candidate.extraCurricular = Array.isArray(structuredData.extraCurricular) ? structuredData.extraCurricular : (candidate.extraCurricular || []);
-        candidate.summary = structuredData.summary || candidate.summary || "";
-        candidate.resumeText = cleanedText;
-        candidate.resumePath = req.file.originalname || "";
-        candidate.embedding = embedding;
+        console.log('[Resume Upload] Updating candidate fields...');
+        try {
+            candidate.name = structuredData.name || candidate.name || user.fullName || "";
+            candidate.email = user.email || candidate.email || "";
+            candidate.phone = structuredData.phone || candidate.phone || user.phone || "";
+            candidate.githubUrl = structuredData.githubUrl || candidate.githubUrl || user.githubUrl || "";
+            candidate.linkedinUrl = structuredData.linkedinUrl || candidate.linkedinUrl || user.linkedinUrl || "";
+            candidate.technicalSkills = mergedTechnicalSkills;
+            candidate.skills = mergedSkills;
+            candidate.experience = Array.isArray(structuredData.experience) ? structuredData.experience : (candidate.experience || []);
+            candidate.education = Array.isArray(structuredData.education) ? structuredData.education : (candidate.education || []);
+            candidate.projects = Array.isArray(structuredData.projects) ? structuredData.projects : (candidate.projects || []);
+            candidate.extraCurricular = Array.isArray(structuredData.extraCurricular) ? structuredData.extraCurricular : (candidate.extraCurricular || []);
+            candidate.summary = structuredData.summary || candidate.summary || "";
+            candidate.resumeText = cleanedText;
+            candidate.resumePath = req.file.originalname || "";
+            candidate.embedding = embedding;
+            console.log('[Resume Upload] Candidate fields updated');
+        } catch (fieldErr) {
+            console.error('[Resume Upload] Error updating candidate fields:', fieldErr.message);
+            throw fieldErr;
+        }
 
+        console.log('[Resume Upload] Saving candidate to database...');
         try {
             if (typeof candidate.save === "function") {
                 await candidate.save();
             } else {
                 await Candidate.findByIdAndUpdate(candidate.id || candidate._id, candidate);
             }
+            console.log('[Resume Upload] Candidate saved successfully');
         } catch (candSaveErr) {
-            console.warn("Candidate save warning:", candSaveErr.message);
+            console.error("Candidate save error:", candSaveErr.message, candSaveErr.stack);
+            // Don't throw - try to continue
         }
 
         user.fullName = candidate.name || user.fullName;
