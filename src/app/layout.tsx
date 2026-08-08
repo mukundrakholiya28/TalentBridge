@@ -13,7 +13,7 @@ export const metadata: Metadata = {
   verification: {
     // Replace this value with your actual Google Search Console verification code
     // Get it from: https://search.google.com/search-console → Add property → HTML tag
-    google: "REPLACE_WITH_YOUR_GOOGLE_SITE_VERIFICATION_CODE",
+    google: "QQ7LZ4GmLlkyyxkKxdSiWyzDWFkhoQr6GH9jvifrbhU"
   },
   openGraph: {
     title: "CONSOLE | TalentBridge",
