@@ -8,25 +8,9 @@ const __dirname  = path.dirname(__filename);
 const nextConfig = {
   reactStrictMode: false,
 
-  outputFileTracingIncludes: {
-    '/api/[...path]': ['./server/**/*'],
-  },
-
   serverExternalPackages: [
     '@xenova/transformers',
     'onnxruntime-node',
-    '@supabase/supabase-js',
-    'express',
-    'cors',
-    'multer',
-    'bcryptjs',
-    'jsonwebtoken',
-    'uuid',
-    'dotenv',
-    'google-auth-library',
-    '@google/genai',
-    'pusher',
-    'pdf-parse',
   ],
 
 
