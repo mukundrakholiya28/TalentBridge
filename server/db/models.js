@@ -27,10 +27,23 @@ function toCamelCase(row, model) {
     }
 
     if (model && (obj.id || obj._id)) {
+        Object.defineProperty(obj, "toObject", {
+            value: function() {
+                const copy = { ...this };
+                return copy;
+            },
+            writable: true,
+            configurable: true,
+            enumerable: false
+        });
+
         Object.defineProperty(obj, "save", {
             value: async function() {
                 const targetId = this.id || this._id;
-                const updated = await model.findByIdAndUpdate(targetId, this);
+                let updated = await model.findByIdAndUpdate(targetId, this);
+                if (!updated) {
+                    updated = await model.create(this);
+                }
                 if (updated) {
                     Object.assign(this, updated);
                 }
@@ -235,13 +248,22 @@ function createModelConstructor(tableName) {
     function ModelInstance(initialData = {}) {
         Object.assign(this, toCamelCase(initialData));
 
+        this.toObject = function() {
+            const copy = { ...this };
+            delete copy.save;
+            delete copy.toObject;
+            return copy;
+        };
+
         this.save = async () => {
-            const dataToSave = { ...this };
-            delete dataToSave.save;
+            const dataToSave = this.toObject();
 
             if (dataToSave.id || dataToSave._id) {
                 const id = dataToSave.id || dataToSave._id;
-                const updated = await rawModel.findByIdAndUpdate(id, dataToSave);
+                let updated = await rawModel.findByIdAndUpdate(id, dataToSave);
+                if (!updated) {
+                    updated = await rawModel.create(dataToSave);
+                }
                 Object.assign(this, updated);
                 return this;
             } else {
