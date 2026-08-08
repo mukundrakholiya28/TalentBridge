@@ -45,6 +45,13 @@ function toSnakeCase(obj) {
     return row;
 }
 
+const withTimeout = (promise, ms = 3000) => {
+    return Promise.race([
+        promise,
+        new Promise((_, reject) => setTimeout(() => reject(new Error("Supabase Query Timeout")), ms))
+    ]);
+};
+
 // Base Supabase Model Class
 class SupabaseModel {
     constructor(tableName) {
@@ -56,23 +63,42 @@ class SupabaseModel {
     }
 
     async find(query = {}) {
-        let q = this.client.from(this.tableName).select("*");
-        const snakeQuery = toSnakeCase(query);
+        try {
+            let q = this.client.from(this.tableName).select("*");
+            const snakeQuery = toSnakeCase(query);
 
-        for (const [key, value] of Object.entries(snakeQuery)) {
-            if (value !== undefined && value !== null) {
-                if (typeof value === "object" && !Array.isArray(value)) {
-                    if (value.$ne !== undefined) q = q.neq(key, value.$ne);
-                    if (value.$in !== undefined) q = q.in(key, value.$in);
-                } else {
-                    q = q.eq(key, value);
+            for (const [key, value] of Object.entries(snakeQuery)) {
+                if (value !== undefined && value !== null) {
+                    if (typeof value === "object" && !Array.isArray(value)) {
+                        if (value.$ne !== undefined) q = q.neq(key, value.$ne);
+                        if (value.$in !== undefined) q = q.in(key, value.$in);
+                    } else {
+                        q = q.eq(key, value);
+                    }
                 }
             }
-        }
 
-        const { data, error } = await q;
-        if (error) throw new Error(error.message);
-        return (data || []).map(toCamelCase);
+            const { data, error } = await withTimeout(q, 3000);
+            if (error) throw new Error(error.message);
+            return (data || []).map(toCamelCase);
+        } catch (err) {
+            console.warn(`⚠️ Supabase query fallback for ${this.tableName}:`, err.message);
+            const { localStore } = require("./supabaseClient");
+            let q = localStore.from(this.tableName).select("*");
+            const snakeQuery = toSnakeCase(query);
+            for (const [key, value] of Object.entries(snakeQuery)) {
+                if (value !== undefined && value !== null) {
+                    if (typeof value === "object" && !Array.isArray(value)) {
+                        if (value.$ne !== undefined) q = q.neq(key, value.$ne);
+                        if (value.$in !== undefined) q = q.in(key, value.$in);
+                    } else {
+                        q = q.eq(key, value);
+                    }
+                }
+            }
+            const res = await q.exec();
+            return (res.data || []).map(toCamelCase);
+        }
     }
 
     async findOne(query = {}) {
@@ -91,14 +117,20 @@ class SupabaseModel {
             rowData.id = crypto.randomUUID();
         }
 
-        const { data: inserted, error } = await this.client
-            .from(this.tableName)
-            .insert(rowData)
-            .select();
-
-        if (error) throw new Error(error.message);
-        const result = Array.isArray(inserted) ? inserted[0] : inserted;
-        return toCamelCase(result || rowData);
+        try {
+            const { data: inserted, error } = await withTimeout(
+                this.client.from(this.tableName).insert(rowData).select(),
+                3000
+            );
+            if (error) throw new Error(error.message);
+            const result = Array.isArray(inserted) ? inserted[0] : inserted;
+            return toCamelCase(result || rowData);
+        } catch (err) {
+            console.warn(`⚠️ Supabase create fallback for ${this.tableName}:`, err.message);
+            const { localStore } = require("./supabaseClient");
+            const res = await localStore.from(this.tableName).insert(rowData);
+            return toCamelCase(res.data || rowData);
+        }
     }
 
     async findByIdAndUpdate(id, updates, options = { new: true }) {
