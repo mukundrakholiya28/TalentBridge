@@ -94,7 +94,7 @@ async function handler(
     req.headers.forEach((v, k) => { headers[k] = v; });
 
     const queryStr = req.nextUrl.search || "";
-    const url = "/api/" + path.join("/") + queryStr;
+    const url = req.nextUrl.pathname + queryStr;
 
     const { Readable } = require("stream");
 
