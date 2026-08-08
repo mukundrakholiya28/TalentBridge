@@ -43,25 +43,30 @@ const buildFormattedText = (text = "") =>
     normalizeLines(text).join("\n");
 
 const parsePdfBuffer = async (buffer) => {
-    const legacyFn =
-        typeof pdfParseLib === "function"
-            ? pdfParseLib
-            : (typeof pdfParseLib.default === "function" ? pdfParseLib.default : null);
+    try {
+        const legacyFn =
+            typeof pdfParseLib === "function"
+                ? pdfParseLib
+                : (typeof pdfParseLib.default === "function" ? pdfParseLib.default : null);
 
-    if (legacyFn) {
-        return legacyFn(buffer);
-    }
-
-    if (typeof pdfParseLib.PDFParse === "function") {
-        const parser = new pdfParseLib.PDFParse({ data: buffer });
-        try {
-            return await parser.getText();
-        } finally {
-            await parser.destroy().catch(() => {});
+        if (legacyFn) {
+            return await legacyFn(buffer);
         }
+
+        if (typeof pdfParseLib.PDFParse === "function") {
+            const parser = new pdfParseLib.PDFParse({ data: buffer });
+            try {
+                return await parser.getText();
+            } finally {
+                await parser.destroy().catch(() => {});
+            }
+        }
+    } catch (err) {
+        console.warn("pdf-parse library error, falling back to raw buffer text:", err.message);
     }
 
-    throw new Error("Unsupported pdf-parse export format");
+    const rawStr = buffer.toString("utf-8").replace(/[^\x20-\x7E\n\r\t]/g, " ");
+    return { text: rawStr };
 };
 
 const extractPdfText = (pdfData) => {

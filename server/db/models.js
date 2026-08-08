@@ -2,12 +2,13 @@ const { getClient } = require("./supabaseClient");
 const crypto = require("crypto");
 
 // Convert snake_case DB row to camelCase JS object
-function toCamelCase(row) {
+function toCamelCase(row, model) {
     if (!row || typeof row !== "object") return row;
-    if (Array.isArray(row)) return row.map(toCamelCase);
+    if (Array.isArray(row)) return row.map(r => toCamelCase(r, model));
 
     const obj = {};
     for (const key of Object.keys(row)) {
+        if (key === "save" || typeof row[key] === "function") continue;
         const camelKey = key.replace(/_([a-z])/g, (_, g) => g.toUpperCase());
         obj[camelKey] = row[key];
     }
@@ -25,6 +26,22 @@ function toCamelCase(row) {
         obj.googleData = obj.google;
     }
 
+    if (model && (obj.id || obj._id)) {
+        Object.defineProperty(obj, "save", {
+            value: async function() {
+                const targetId = this.id || this._id;
+                const updated = await model.findByIdAndUpdate(targetId, this);
+                if (updated) {
+                    Object.assign(this, updated);
+                }
+                return this;
+            },
+            writable: true,
+            configurable: true,
+            enumerable: false
+        });
+    }
+
     return obj;
 }
 
@@ -35,7 +52,7 @@ function toSnakeCase(obj) {
 
     const row = {};
     for (const key of Object.keys(obj)) {
-        if (key === "_id") continue;
+        if (key === "_id" || key === "save" || typeof obj[key] === "function") continue;
         let snakeKey = key.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
         if (snakeKey === "google") {
             snakeKey = "google_data";
@@ -80,7 +97,7 @@ class SupabaseModel {
 
             const { data, error } = await withTimeout(q, 3000);
             if (error) throw new Error(error.message);
-            return (data || []).map(toCamelCase);
+            return (data || []).map(r => toCamelCase(r, this));
         } catch (err) {
             console.warn(`⚠️ Supabase query fallback for ${this.tableName}:`, err.message);
             const { localStore } = require("./supabaseClient");
@@ -97,7 +114,7 @@ class SupabaseModel {
                 }
             }
             const res = await q.exec();
-            return (res.data || []).map(toCamelCase);
+            return (res.data || []).map(r => toCamelCase(r, this));
         }
     }
 
@@ -124,12 +141,12 @@ class SupabaseModel {
             );
             if (error) throw new Error(error.message);
             const result = Array.isArray(inserted) ? inserted[0] : inserted;
-            return toCamelCase(result || rowData);
+            return toCamelCase(result || rowData, this);
         } catch (err) {
             console.warn(`⚠️ Supabase create fallback for ${this.tableName}:`, err.message);
             const { localStore } = require("./supabaseClient");
             const res = await localStore.from(this.tableName).insert(rowData);
-            return toCamelCase(res.data || rowData);
+            return toCamelCase(res.data || rowData, this);
         }
     }
 
@@ -149,7 +166,7 @@ class SupabaseModel {
             );
             if (error) throw new Error(error.message);
             const result = Array.isArray(data) ? data[0] : data;
-            return toCamelCase(result);
+            return toCamelCase(result, this);
         } catch (err) {
             console.warn(`⚠️ Supabase update fallback for ${this.tableName}:`, err.message);
             const { localStore } = require("./supabaseClient");
@@ -159,7 +176,7 @@ class SupabaseModel {
                 .eq("id", String(id))
                 .exec();
             const result = Array.isArray(res.data) ? res.data[0] : res.data;
-            return toCamelCase(result);
+            return toCamelCase(result, this);
         }
     }
 
