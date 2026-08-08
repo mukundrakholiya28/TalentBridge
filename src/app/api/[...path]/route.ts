@@ -29,22 +29,26 @@ async function buildExpressApp(): Promise<ExpressApp> {
   app.use(cors({ origin: "*" }));
   app.use(express.json({ limit: "5mb" }));
 
-  // ── Routes (relative CommonJS requires) ───────────────────────────────────
-  app.use("/api/auth",         require("../../../../server/routes/auth"));
-  app.use("/api/jobs",         require("../../../../server/routes/jobs"));
-  app.use("/api/applications", require("../../../../server/routes/applications"));
-  app.use("/api/messages",     require("../../../../server/routes/messages"));
-  app.use("/api/evaluation",   require("../../../../server/routes/evaluation"));
-  app.use("/api/rag",          require("../../../../server/routes/ragSearch"));
-  app.use("/api/ats",          require("../../../../server/routes/ats"));
-  app.use("/api/resume",       require("../../../../server/routes/resume"));
-  app.use("/api/offers",       require("../../../../server/routes/offers"));
-  app.use("/api/oa",           require("../../../../server/routes/oa"));
-  app.use("/api/candidate",    require("../../../../server/routes/candidate"));
-  app.use("/api/recruiter",    require("../../../../server/routes/recruiter"));
+  // ── Routes (eval-require at runtime so Webpack bypasses server/node_modules compilation) ───
+  const base = process.cwd() + "/server";
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const reqMod = (modPath: string) => eval("require")(modPath);
 
-  const authMiddleware             = require("../../../../server/middleware/authMiddleware");
-  const { uploadResume }           = require("../../../../server/controllers/resumeController");
+  app.use("/api/auth",         reqMod(`${base}/routes/auth`));
+  app.use("/api/jobs",         reqMod(`${base}/routes/jobs`));
+  app.use("/api/applications", reqMod(`${base}/routes/applications`));
+  app.use("/api/messages",     reqMod(`${base}/routes/messages`));
+  app.use("/api/evaluation",   reqMod(`${base}/routes/evaluation`));
+  app.use("/api/rag",          reqMod(`${base}/routes/ragSearch`));
+  app.use("/api/ats",          reqMod(`${base}/routes/ats`));
+  app.use("/api/resume",       reqMod(`${base}/routes/resume`));
+  app.use("/api/offers",       reqMod(`${base}/routes/offers`));
+  app.use("/api/oa",           reqMod(`${base}/routes/oa`));
+  app.use("/api/candidate",    reqMod(`${base}/routes/candidate`));
+  app.use("/api/recruiter",    reqMod(`${base}/routes/recruiter`));
+
+  const authMiddleware             = reqMod(`${base}/middleware/authMiddleware`);
+  const { uploadResume }           = reqMod(`${base}/controllers/resumeController`);
 
   const upload = multer({
     storage: multer.memoryStorage(),
