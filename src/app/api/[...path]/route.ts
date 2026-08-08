@@ -178,7 +178,7 @@ async function handler(
         app: {},
       };
 
-      app(mockReq, mockRes, (err: any) => {
+      (app as any)(mockReq, mockRes, (err?: any) => {
         if (err) {
           console.error("[Express Error Callback]", err);
           return resolve(NextResponse.json({ error: err?.message || String(err) }, { status: 500 }));
