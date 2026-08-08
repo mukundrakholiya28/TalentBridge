@@ -1,11 +1,9 @@
-const { GoogleGenAI } = require("@google/genai");
+const { GoogleGenerativeAI } = require("@google/generative-ai");
 
-const ai = new GoogleGenAI({
-    apiKey: process.env.GEMINI_API_KEY
-});
-const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-2.0-flash";
+const ai = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-1.5-flash";
 const GEMINI_MODEL_CANDIDATES = (process.env.GEMINI_MODEL_CANDIDATES ||
-    `${GEMINI_MODEL},gemini-2.5-flash,gemini-2.0-flash,gemini-2.0-flash-lite,gemini-1.5-flash`)
+    `${GEMINI_MODEL},gemini-1.5-flash,gemini-1.5-pro`)
     .split(",")
     .map((m) => m.trim())
     .filter(Boolean);
@@ -190,11 +188,10 @@ const callGeminiForJson = async (prompt) => {
 
     for (const model of GEMINI_MODEL_CANDIDATES) {
         try {
-            const response = await ai.models.generateContent({
-                model,
-                contents: prompt
-            });
-            const raw = response.text;
+            const genModel = ai.getGenerativeModel({ model });
+            const result = await genModel.generateContent(prompt);
+            const response = await result.response;
+            const raw = response.text();
             const jsonString = extractJsonFromText(raw);
             return JSON.parse(jsonString);
         } catch (err) {
